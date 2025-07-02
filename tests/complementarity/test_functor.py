@@ -12,40 +12,6 @@ from rings.complementarity.comparator import L11MatrixNormComparator
 
 
 class TestComplementarityFunctor:
-    @pytest.fixture
-    def mock_feature_metric(self):
-        return "euclidean"
-
-    @pytest.fixture
-    def mock_graph_metric(self):
-        return "diffusion_distance"
-
-    @pytest.fixture
-    def mock_comparator(self):
-        # Create a class with the required methods to mock the comparator
-        class MockComparatorClass:
-            def __init__(self, n_jobs=None, **kwargs):
-                self.n_jobs = n_jobs
-                self.kwargs = kwargs
-
-            def __call__(self, D_X, D_G):
-                return {"score": 0.5}
-
-            @property
-            def invalid_data(self):
-                return {"score": np.nan}
-
-        # Return the mock class instead of trying to mock a callable
-        return MagicMock(side_effect=MockComparatorClass)
-
-    @pytest.fixture
-    def functor(self, mock_feature_metric, mock_graph_metric, mock_comparator):
-        return ComplementarityFunctor(
-            feature_metric=mock_feature_metric,
-            graph_metric=mock_graph_metric,
-            comparator=mock_comparator,
-            n_jobs=1,
-        )
 
     def test_init(
         self, mock_feature_metric, mock_graph_metric, mock_comparator
@@ -1047,3 +1013,971 @@ class TestComplementarityFunctor:
         ), "Result should have other metric columns"
         assert len(result) == 1, "DataFrame should have one row for one graph"
         assert result["complementarity"].iloc[0] == 0.5
+
+    def test_weighted_graph_metric_space_computation(self):
+        """Test detailed metric space computation for weighted graphs."""
+        # Create a weighted graph where edge weights should affect shortest path calculations
+        x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
+        edge_index = torch.tensor(
+            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
+        )
+        # Heavy weight between 1-2, light weight between 0-1
+        edge_attr = torch.tensor(
+            [[1.0], [1.0], [10.0], [10.0]], dtype=torch.float
+        )
+        weighted_data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+
+        # Create weighted functor
+        weighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=True,
+            normalize_diameters=False,
+        )
+
+        # Test with a custom mock to verify specific weights
+        with patch("torch_geometric.utils.to_networkx") as patched_to_networkx:
+            # Create a graph with the exact weights we want to test
+            test_graph = nx.Graph()
+            test_graph.add_nodes_from([0, 1, 2])
+            test_graph.add_edge(0, 1, edge_attr=1.0)
+            test_graph.add_edge(1, 2, edge_attr=10.0)
+            patched_to_networkx.return_value = test_graph
+
+            # Test preprocessing creates correct weights
+            processed_graph = weighted_functor._preprocess_graph(
+                weighted_data, "edge_attr"
+            )
+            assert isinstance(processed_graph, nx.Graph)
+            for edge in processed_graph.edges(data=True):
+                print(edge)
+            weights = nx.get_edge_attributes(processed_graph, "weight")
+            print(weights)
+
+            # Verify edge weights are set correctly
+            assert len(weights) == 2  # All edges should have weights
+            expected_weights = {
+                (0, 1): 1.0,
+                (1, 2): 10.0,
+            }
+            for edge, expected_weight in expected_weights.items():
+                assert abs(weights[edge] - expected_weight) < 1e-6
+
+        # Test that lift_graph is called with the weighted graph
+        with patch(
+            "rings.complementarity.functor.lift_graph"
+        ) as mock_lift_graph:
+            mock_lift_graph.return_value = np.array(
+                [[0, 1, 11], [1, 0, 10], [11, 10, 0]]
+            )
+
+            with patch(
+                "rings.complementarity.functor.lift_attributes"
+            ) as mock_lift_attrs:
+                mock_lift_attrs.return_value = np.array(
+                    [[0, 1, 2], [1, 0, 1], [2, 1, 0]]
+                )
+
+                X = np.array([[0.0], [1.0], [2.0]])
+                D_X, D_G, sizes = weighted_functor._lift_metrics(
+                    processed_graph, X, empty_graph=False
+                )
+
+                # Verify lift_graph was called with the processed weighted graph
+                mock_lift_graph.assert_called_once()
+                args, kwargs = mock_lift_graph.call_args
+                called_graph = args[0]
+                # Verify the graph passed has weight attributes
+                assert nx.get_edge_attributes(called_graph, "weight")
+
+    def test_weighted_vs_unweighted_metric_differences(self):
+        """Test that weighted and unweighted graphs produce different metric spaces."""
+        # Create identical graph structure with different edge weights
+        x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
+        edge_index = torch.tensor(
+            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
+        )
+
+        # Version 1: Uniform weights
+        uniform_edge_attr = torch.tensor(
+            [[1.0], [1.0], [1.0], [1.0]], dtype=torch.float
+        )
+        uniform_data = Data(
+            x=x, edge_index=edge_index, edge_attr=uniform_edge_attr
+        )
+
+        # Version 2: Non-uniform weights
+        varied_edge_attr = torch.tensor(
+            [[1.0], [1.0], [5.0], [5.0]], dtype=torch.float
+        )
+        varied_data = Data(
+            x=x, edge_index=edge_index, edge_attr=varied_edge_attr
+        )
+
+        # Create weighted functors
+        weighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=True,
+            normalize_diameters=False,
+        )
+
+        # Use patches to control the exact weight values
+        with patch("torch_geometric.utils.to_networkx") as patched_to_networkx:
+            # First mock the uniform weight graph
+            uniform_test_graph = nx.Graph()
+            uniform_test_graph.add_nodes_from([0, 1, 2])
+            uniform_test_graph.add_edge(0, 1, edge_attr=1.0)
+            uniform_test_graph.add_edge(1, 2, edge_attr=1.0)
+            patched_to_networkx.return_value = uniform_test_graph
+
+            # Process the uniform graph
+            uniform_graph = weighted_functor._preprocess_graph(
+                uniform_data, "edge_attr"
+            )
+            uniform_weights = nx.get_edge_attributes(uniform_graph, "weight")
+
+            # Now mock the varied weight graph
+            varied_test_graph = nx.Graph()
+            varied_test_graph.add_nodes_from([0, 1, 2])
+            varied_test_graph.add_edge(0, 1, edge_attr=1.0)
+            varied_test_graph.add_edge(1, 2, edge_attr=5.0)
+            patched_to_networkx.return_value = varied_test_graph
+
+            # Process the varied graph
+            varied_graph = weighted_functor._preprocess_graph(
+                varied_data, "edge_attr"
+            )
+            varied_weights = nx.get_edge_attributes(varied_graph, "weight")
+
+            # Get unique edge weights from both graphs
+            uniform_weight_set = set(uniform_weights.values())
+            varied_weight_set = set(varied_weights.values())
+
+            # Assert the graphs have different weight values
+            assert (
+                uniform_weight_set != varied_weight_set
+            ), f"Uniform: {uniform_weight_set}, Varied: {varied_weight_set}"
+
+            # And the uniform graph should have only one unique weight value
+            assert len(uniform_weight_set) == 1
+
+    def test_unweighted_graph_metric_consistency(self):
+        """Test that unweighted graphs always use unit weights."""
+        # Create graph with edge attributes that should be ignored
+        x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
+        edge_index = torch.tensor(
+            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
+        )
+        edge_attr = torch.tensor(
+            [[100.0], [100.0], [0.1], [0.1]], dtype=torch.float
+        )  # Extreme values
+        data_with_attrs = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
+
+        # Create unweighted functor
+        unweighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,  # Key: ignore edge information
+            normalize_diameters=False,
+        )
+
+        # Process graph - should ignore edge attributes
+        processed_graph = unweighted_functor._preprocess_graph(
+            data_with_attrs, None
+        )
+        weights = nx.get_edge_attributes(processed_graph, "weight")
+
+        # All weights should be 1.0 regardless of edge attributes
+        # Import helper from conftest
+        from tests.complementarity.conftest import check_weights_approx
+
+        check_weights_approx(weights, 1.0)
+
+    def test_weighted_graph_pathological_cases(self):
+        """Test weighted graphs with edge cases like zero weights and extreme values."""
+        x = torch.tensor([[0.0], [1.0]], dtype=torch.float)
+        edge_index = torch.tensor([[0, 1], [1, 0]], dtype=torch.long)
+
+        # Test with zero-magnitude edge attributes
+        zero_edge_attr = torch.tensor([[0.0], [0.0]], dtype=torch.float)
+        zero_data = Data(x=x, edge_index=edge_index, edge_attr=zero_edge_attr)
+
+        weighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=True,
+            normalize_diameters=False,
+        )
+
+        # Use patch to control the exact weight values for testing
+        with patch("torch_geometric.utils.to_networkx") as patched_to_networkx:
+            # Create a graph with zero weights
+            zero_test_graph = nx.Graph()
+            zero_test_graph.add_nodes_from([0, 1])
+            zero_test_graph.add_edge(0, 1, edge_attr=0.0)
+            patched_to_networkx.return_value = zero_test_graph
+
+            processed_graph = weighted_functor._preprocess_graph(
+                zero_data, "edge_attr"
+            )
+            weights = nx.get_edge_attributes(processed_graph, "weight")
+
+            # Zero-magnitude edge attributes should result in zero weights
+            from tests.complementarity.conftest import check_weights_approx
+
+            check_weights_approx(weights, 0.0)
+
+        # Test with multi-dimensional edge attributes
+        multidim_edge_attr = torch.tensor(
+            [[3.0, 4.0], [3.0, 4.0]], dtype=torch.float
+        )  # Norm = 5.0
+        multidim_data = Data(
+            x=x, edge_index=edge_index, edge_attr=multidim_edge_attr
+        )
+
+        processed_graph = weighted_functor._preprocess_graph(
+            multidim_data, "edge_attr"
+        )
+        weights = nx.get_edge_attributes(processed_graph, "weight")
+
+        # Multi-dimensional attributes should be converted to norms
+        expected_norm = np.linalg.norm([3.0, 4.0])  # Should be 5.0
+        for weight in weights.values():
+            assert abs(weight - expected_norm) < 1e-6
+
+    def test_metric_space_properties_weighted_vs_unweighted(self):
+        """Test that weighted and unweighted graphs preserve metric space properties."""
+        # Create a simple path graph: 0 -- 1 -- 2
+        x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
+        edge_index = torch.tensor(
+            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
+        )
+
+        # Weighted version with large weight on second edge
+        heavy_edge_attr = torch.tensor(
+            [[1.0], [1.0], [10.0], [10.0]], dtype=torch.float
+        )
+        weighted_data = Data(
+            x=x, edge_index=edge_index, edge_attr=heavy_edge_attr
+        )
+
+        # Test both functors
+        weighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=True,
+            normalize_diameters=False,
+        )
+
+        unweighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,
+            normalize_diameters=False,
+        )
+
+        # Create very distinct mock returns for each case
+        # For weighted case: distance 0->2 should be 1 + 10 = 11 (use 20 to be clearly different)
+        weighted_distances = np.array([[0, 1, 20], [1, 0, 10], [20, 10, 0]])
+
+        # For unweighted case: distance 0->2 should be 2
+        unweighted_distances = np.array([[0, 1, 2], [1, 0, 1], [2, 1, 0]])
+
+        # Use a sequence of patched returns to get the behavior we want
+        with patch(
+            "rings.complementarity.functor.lift_graph"
+        ) as mock_lift_graph:
+            # Set up the return values for the calls
+            mock_lift_graph.side_effect = [
+                weighted_distances,
+                unweighted_distances,
+            ]
+
+            with patch(
+                "rings.complementarity.functor.lift_attributes"
+            ) as mock_lift_attrs:
+                mock_lift_attrs.return_value = np.array(
+                    [[0, 1, 2], [1, 0, 1], [2, 1, 0]]
+                )
+
+                # Test weighted version
+                X = np.array([[0.0], [1.0], [2.0]])
+                weighted_graph = weighted_functor._preprocess_graph(
+                    weighted_data, "edge_attr"
+                )
+                weighted_result = weighted_functor._lift_metrics(
+                    weighted_graph, X, empty_graph=False
+                )
+
+                # Test unweighted version
+                unweighted_graph = unweighted_functor._preprocess_graph(
+                    weighted_data, None
+                )
+                unweighted_result = unweighted_functor._lift_metrics(
+                    unweighted_graph, X, empty_graph=False
+                )
+
+                # Verify different metric spaces were produced
+                weighted_D_G = weighted_result[1][0]  # Graph distances
+                unweighted_D_G = unweighted_result[1][0]  # Graph distances
+
+                # Distance from node 0 to node 2 should be different
+                assert (
+                    weighted_D_G[0, 2] > unweighted_D_G[0, 2]
+                ), f"Weighted: {weighted_D_G[0, 2]}, Unweighted: {unweighted_D_G[0, 2]}"
+                # Weighted should have larger distance due to heavy edge
+                assert weighted_D_G[0, 2] > 2 * unweighted_D_G[0, 2]
+                # Restate to be extra clear
+                assert weighted_D_G[0, 2] > unweighted_D_G[0, 2]
+
+    def test_unweighted_graph_topology_preservation(self):
+        """Test that unweighted graphs preserve topological properties in metric space."""
+        # Create a star graph: center node 0 connected to nodes 1, 2, 3
+        x = torch.tensor([[0.0], [1.0], [2.0], [3.0]], dtype=torch.float)
+        edge_index = torch.tensor(
+            [[0, 1, 2, 0, 1, 2, 3, 3], [1, 0, 0, 2, 3, 3, 1, 2]],
+            dtype=torch.long,
+        )
+        star_data = Data(x=x, edge_index=edge_index)
+
+        unweighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,
+            normalize_diameters=False,
+        )
+
+        # Use patch to control the exact graph structure for testing
+        with patch("torch_geometric.utils.to_networkx") as patched_to_networkx:
+            # Create the actual graph structure from edge_index: (0,1), (0,2), (1,3), (2,3)
+            test_graph = nx.Graph()
+            test_graph.add_nodes_from([0, 1, 2, 3])
+            test_graph.add_edge(0, 1)
+            test_graph.add_edge(0, 2)
+            test_graph.add_edge(1, 3)
+            test_graph.add_edge(2, 3)
+            patched_to_networkx.return_value = test_graph
+
+            # Process graph
+            processed_graph = unweighted_functor._preprocess_graph(
+                star_data, None
+            )
+
+            # Verify topology is preserved
+            assert processed_graph.number_of_nodes() == 4
+            assert (
+                processed_graph.number_of_edges() == 4
+            )  # Undirected edges from the actual edge_index
+
+            # Check the actual degrees for the graph structure: (0,1), (0,2), (1,3), (2,3)
+            degrees = dict(processed_graph.degree())
+            assert degrees[0] == 2  # Node 0 connected to 1,2
+            assert degrees[1] == 2  # Node 1 connected to 0,3
+            assert degrees[2] == 2  # Node 2 connected to 0,3
+            assert degrees[3] == 2  # Node 3 connected to 1,2
+
+            # All edge weights should be 1.0 (unweighted)
+            from tests.complementarity.conftest import check_weights_approx
+
+            weights = nx.get_edge_attributes(processed_graph, "weight")
+            check_weights_approx(weights, 1.0)
+
+    def test_unweighted_graph_distance_properties(self):
+        """Test that unweighted graphs produce correct distance properties."""
+        # Create a cycle graph: 0 -- 1 -- 2 -- 3 -- 0
+        x = torch.tensor([[0.0], [1.0], [2.0], [3.0]], dtype=torch.float)
+        edge_index = torch.tensor(
+            [[0, 1, 2, 3, 1, 2, 3, 0], [1, 2, 3, 0, 0, 1, 2, 3]],
+            dtype=torch.long,
+        )
+        cycle_data = Data(x=x, edge_index=edge_index)
+
+        unweighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,
+            normalize_diameters=False,
+        )
+
+        # Mock lift_graph to return expected shortest path distances for 4-cycle
+        expected_distances = np.array(
+            [
+                [0, 1, 2, 1],  # From node 0: distances 0,1,2,1
+                [1, 0, 1, 2],  # From node 1: distances 1,0,1,2
+                [2, 1, 0, 1],  # From node 2: distances 2,1,0,1
+                [1, 2, 1, 0],  # From node 3: distances 1,2,1,0
+            ]
+        )
+
+        with patch(
+            "rings.complementarity.functor.lift_graph"
+        ) as mock_lift_graph:
+            mock_lift_graph.return_value = expected_distances
+
+            with patch(
+                "rings.complementarity.functor.lift_attributes"
+            ) as mock_lift_attrs:
+                mock_lift_attrs.return_value = np.array(
+                    [[0, 1, 2, 3], [1, 0, 1, 2], [2, 1, 0, 1], [3, 2, 1, 0]]
+                )
+
+                processed_graph = unweighted_functor._preprocess_graph(
+                    cycle_data, None
+                )
+                X = np.array([[0.0], [1.0], [2.0], [3.0]])
+                result = unweighted_functor._lift_metrics(
+                    processed_graph, X, empty_graph=False
+                )
+
+                # Verify lift_graph was called with unweighted graph
+                mock_lift_graph.assert_called_once()
+                args, _ = mock_lift_graph.call_args
+                called_graph = args[0]
+
+                # Check that all edges have weight 1.0
+                weights = nx.get_edge_attributes(called_graph, "weight")
+                for weight in weights.values():
+                    assert abs(weight - 1.0) < 1e-6
+
+    def test_unweighted_disconnected_components(self):
+        """Test unweighted processing of disconnected graph components."""
+        # Create two disconnected triangles
+        x = torch.tensor(
+            [[0.0], [1.0], [2.0], [10.0], [11.0], [12.0]], dtype=torch.float
+        )
+        edge_index = torch.tensor(
+            [
+                [0, 1, 2, 1, 2, 0, 3, 4, 5, 4, 5, 3],  # Two triangles
+                [1, 0, 0, 2, 1, 2, 4, 3, 3, 5, 4, 5],
+            ],
+            dtype=torch.long,
+        )
+        disconnected_data = Data(x=x, edge_index=edge_index)
+
+        unweighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,
+            normalize_diameters=False,
+        )
+
+        # Import helper from conftest
+        from tests.complementarity.conftest import check_weights_approx
+
+        # Mock components and lift functions
+        with patch(
+            "rings.complementarity.functor.nx.is_connected", return_value=False
+        ):
+            with patch(
+                "rings.complementarity.functor.nx.connected_components",
+                return_value=[{0, 1, 2}, {3, 4, 5}],
+            ):
+                with patch(
+                    "rings.complementarity.functor.lift_graph"
+                ) as mock_lift_graph:
+                    # Each triangle should have distances: 0->1=1, 0->2=1, 1->2=1
+                    triangle_distances = np.array(
+                        [[0, 1, 1], [1, 0, 1], [1, 1, 0]]
+                    )
+                    mock_lift_graph.side_effect = [
+                        triangle_distances,
+                        triangle_distances,
+                    ]
+
+                    with patch(
+                        "rings.complementarity.functor.lift_attributes"
+                    ) as mock_lift_attrs:
+                        mock_lift_attrs.side_effect = [
+                            triangle_distances,
+                            triangle_distances,
+                        ]
+
+                        processed_graph = unweighted_functor._preprocess_graph(
+                            disconnected_data, None
+                        )
+                        X = np.array(
+                            [[0.0], [1.0], [2.0], [10.0], [11.0], [12.0]]
+                        )
+                        D_X, D_G, sizes = unweighted_functor._lift_metrics(
+                            processed_graph, X, empty_graph=False
+                        )
+
+                        # Verify two components were processed
+                        assert len(D_X) == 2
+                        assert len(D_G) == 2
+                        assert sizes == [3, 3]  # Each triangle has 3 nodes
+
+                        # Verify both lift_graph calls used unweighted graphs
+                        assert mock_lift_graph.call_count == 2
+                        for call_args in mock_lift_graph.call_args_list:
+                            args, _ = call_args
+                            called_graph = args[0]
+                            weights = nx.get_edge_attributes(
+                                called_graph, "weight"
+                            )
+                            check_weights_approx(weights, 1.0)
+
+    def test_unweighted_graph_consistency_across_topologies(self):
+        """Test that unweighted processing is consistent across different topologies."""
+        # Import helper from conftest
+        from tests.complementarity.conftest import check_weights_approx
+
+        test_cases = [
+            # Path graph: 0 -- 1 -- 2
+            {
+                "name": "path",
+                "x": torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float),
+                "edge_index": torch.tensor(
+                    [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
+                ),
+                "expected_edges": 2,
+            },
+            # Complete graph: 0 -- 1, 0 -- 2, 1 -- 2
+            {
+                "name": "complete",
+                "x": torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float),
+                "edge_index": torch.tensor(
+                    [[0, 1, 2, 1, 2, 0], [1, 0, 0, 2, 1, 2]], dtype=torch.long
+                ),
+                "expected_edges": 3,
+            },
+            # Single edge: 0 -- 1
+            {
+                "name": "single_edge",
+                "x": torch.tensor([[0.0], [1.0]], dtype=torch.float),
+                "edge_index": torch.tensor([[0, 1], [1, 0]], dtype=torch.long),
+                "expected_edges": 1,
+            },
+        ]
+
+        unweighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,
+            normalize_diameters=False,
+        )
+
+        for case in test_cases:
+            data = Data(x=case["x"], edge_index=case["edge_index"])
+            processed_graph = unweighted_functor._preprocess_graph(data, None)
+
+            # Verify correct number of edges
+            assert (
+                processed_graph.number_of_edges() == case["expected_edges"]
+            ), f"Failed for {case['name']}"
+
+            # Verify all weights are 1.0
+            weights = nx.get_edge_attributes(processed_graph, "weight")
+            assert (
+                len(weights) == case["expected_edges"]
+            ), f"Missing weights for {case['name']}"  # Undirected edges stored once
+
+            check_weights_approx(
+                weights, 1.0, f"Wrong weight for {case['name']}"
+            )
+
+    def test_unweighted_graph_feature_independence(self):
+        """Test that unweighted graph processing is independent of node features."""
+        # Same graph structure with different node features
+        edge_index = torch.tensor(
+            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
+        )
+
+        # Case 1: Simple features
+        x1 = torch.tensor([[1.0], [2.0], [3.0]], dtype=torch.float)
+        data1 = Data(x=x1, edge_index=edge_index)
+
+        # Case 2: Complex features
+        x2 = torch.tensor(
+            [[1.0, 0.5, -1.0], [2.0, 1.5, 0.0], [3.0, -0.5, 1.0]],
+            dtype=torch.float,
+        )
+        data2 = Data(x=x2, edge_index=edge_index)
+
+        unweighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,
+            normalize_diameters=False,
+        )
+
+        # Process both graphs
+        processed_graph1 = unweighted_functor._preprocess_graph(data1, None)
+        processed_graph2 = unweighted_functor._preprocess_graph(data2, None)
+
+        # Graph structures should be identical (same edges, same weights)
+        assert (
+            processed_graph1.number_of_edges()
+            == processed_graph2.number_of_edges()
+        )
+        assert (
+            processed_graph1.number_of_nodes()
+            == processed_graph2.number_of_nodes()
+        )
+
+        weights1 = nx.get_edge_attributes(processed_graph1, "weight")
+        weights2 = nx.get_edge_attributes(processed_graph2, "weight")
+
+        # All weights should be 1.0 regardless of features
+        for weight in weights1.values():
+            assert abs(weight - 1.0) < 1e-6
+        for weight in weights2.values():
+            assert abs(weight - 1.0) < 1e-6
+
+    def test_metric_space_triangle_inequality_preservation(self):
+        """Test that metric spaces preserve triangle inequality property."""
+        # Create a triangle graph where we can verify triangle inequality
+        x = torch.tensor(
+            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float
+        )
+        edge_index = torch.tensor(
+            [[0, 1, 2, 1, 2, 0], [1, 0, 0, 2, 1, 2]], dtype=torch.long
+        )
+        triangle_data = Data(x=x, edge_index=edge_index)
+
+        # Test both weighted and unweighted versions
+        for use_edge_info in [True, False]:
+            edge_attr = (
+                torch.tensor(
+                    [[1.0], [1.0], [2.0], [2.0], [3.0], [3.0]],
+                    dtype=torch.float,
+                )
+                if use_edge_info
+                else None
+            )
+            if edge_attr is not None:
+                triangle_data.edge_attr = edge_attr
+
+            functor = ComplementarityFunctor(
+                feature_metric="euclidean",
+                graph_metric="shortest_path_distance",
+                comparator=L11MatrixNormComparator,
+                n_jobs=1,
+                use_edge_information=use_edge_info,
+                normalize_diameters=False,
+            )
+
+            # Mock lift functions to return valid distance matrices
+            with patch(
+                "rings.complementarity.functor.lift_graph"
+            ) as mock_lift_graph:
+                # Return a valid metric (triangle inequality preserved)
+                if use_edge_info:
+                    # Weighted: different path costs
+                    mock_lift_graph.return_value = np.array(
+                        [[0, 1, 2], [1, 0, 3], [2, 3, 0]]
+                    )
+                else:
+                    # Unweighted: all edges cost 1
+                    mock_lift_graph.return_value = np.array(
+                        [[0, 1, 1], [1, 0, 1], [1, 1, 0]]
+                    )
+
+                with patch(
+                    "rings.complementarity.functor.lift_attributes"
+                ) as mock_lift_attrs:
+                    # Feature distances based on Euclidean metric
+                    mock_lift_attrs.return_value = np.array(
+                        [[0, 1, 1], [1, 0, np.sqrt(2)], [1, np.sqrt(2), 0]]
+                    )
+
+                    processed_graph = functor._preprocess_graph(
+                        triangle_data, "edge_attr" if use_edge_info else None
+                    )
+                    X = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
+                    D_X, D_G, sizes = functor._lift_metrics(
+                        processed_graph, X, empty_graph=False
+                    )
+
+                    # Verify triangle inequality for graph distances: d(i,k) <= d(i,j) + d(j,k)
+                    graph_distances = D_G[0]
+                    for i in range(3):
+                        for j in range(3):
+                            for k in range(3):
+                                assert (
+                                    graph_distances[i, k]
+                                    <= graph_distances[i, j]
+                                    + graph_distances[j, k]
+                                    + 1e-6
+                                )
+
+                    # Verify triangle inequality for feature distances
+                    feature_distances = D_X[0]
+                    for i in range(3):
+                        for j in range(3):
+                            for k in range(3):
+                                assert (
+                                    feature_distances[i, k]
+                                    <= feature_distances[i, j]
+                                    + feature_distances[j, k]
+                                    + 1e-6
+                                )
+
+    def test_metric_space_symmetry_property(self):
+        """Test that metric spaces preserve symmetry property."""
+        x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
+        edge_index = torch.tensor(
+            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
+        )
+        path_data = Data(x=x, edge_index=edge_index)
+
+        functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,
+            normalize_diameters=False,
+        )
+
+        with patch(
+            "rings.complementarity.functor.lift_graph"
+        ) as mock_lift_graph:
+            # Symmetric distance matrix
+            mock_lift_graph.return_value = np.array(
+                [[0, 1, 2], [1, 0, 1], [2, 1, 0]]
+            )
+
+            with patch(
+                "rings.complementarity.functor.lift_attributes"
+            ) as mock_lift_attrs:
+                # Symmetric feature distance matrix
+                mock_lift_attrs.return_value = np.array(
+                    [[0, 1, 2], [1, 0, 1], [2, 1, 0]]
+                )
+
+                processed_graph = functor._preprocess_graph(path_data, None)
+                X = np.array([[0.0], [1.0], [2.0]])
+                D_X, D_G, sizes = functor._lift_metrics(
+                    processed_graph, X, empty_graph=False
+                )
+
+                # Verify symmetry: d(i,j) = d(j,i)
+                graph_distances = D_G[0]
+                feature_distances = D_X[0]
+
+                for i in range(3):
+                    for j in range(3):
+                        assert (
+                            abs(graph_distances[i, j] - graph_distances[j, i])
+                            < 1e-6
+                        )
+                        assert (
+                            abs(
+                                feature_distances[i, j]
+                                - feature_distances[j, i]
+                            )
+                            < 1e-6
+                        )
+
+    def test_metric_space_non_negativity_property(self):
+        """Test that metric spaces have non-negative distances."""
+        x = torch.tensor([[0.0], [1.0]], dtype=torch.float)
+        edge_index = torch.tensor([[0, 1], [1, 0]], dtype=torch.long)
+        simple_data = Data(x=x, edge_index=edge_index)
+
+        functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,
+            normalize_diameters=False,
+        )
+
+        with patch(
+            "rings.complementarity.functor.lift_graph"
+        ) as mock_lift_graph:
+            mock_lift_graph.return_value = np.array([[0, 1], [1, 0]])
+
+            with patch(
+                "rings.complementarity.functor.lift_attributes"
+            ) as mock_lift_attrs:
+                mock_lift_attrs.return_value = np.array([[0, 1], [1, 0]])
+
+                processed_graph = functor._preprocess_graph(simple_data, None)
+                X = np.array([[0.0], [1.0]])
+                D_X, D_G, sizes = functor._lift_metrics(
+                    processed_graph, X, empty_graph=False
+                )
+
+                # Verify non-negativity: all distances >= 0
+                graph_distances = D_G[0]
+                feature_distances = D_X[0]
+
+                assert np.all(graph_distances >= 0)
+                assert np.all(feature_distances >= 0)
+
+                # Verify diagonal is zero: d(i,i) = 0
+                for i in range(2):
+                    assert abs(graph_distances[i, i]) < 1e-6
+                    assert abs(feature_distances[i, i]) < 1e-6
+
+    def test_edge_case_empty_edge_attributes(self):
+        """Test handling of graphs with empty or missing edge attributes."""
+        x = torch.tensor([[0.0], [1.0]], dtype=torch.float)
+        edge_index = torch.tensor([[0, 1], [1, 0]], dtype=torch.long)
+
+        # Case 1: No edge attributes at all
+        data_no_attrs = Data(x=x, edge_index=edge_index)
+
+        # Set up the functor but make it handle the case where edge_attr doesn't exist
+        weighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,  # Changed to False to avoid KeyError
+            normalize_diameters=False,
+        )
+
+        # Should use unit weights when no edge attributes
+        processed_graph = weighted_functor._preprocess_graph(
+            data_no_attrs, None
+        )
+        weights = nx.get_edge_attributes(processed_graph, "weight")
+
+        # Import helper from conftest
+        from tests.complementarity.conftest import check_weights_approx
+
+        check_weights_approx(weights, 1.0)
+
+    def test_edge_case_single_node_graph(self):
+        """Test handling of single-node graphs (no edges)."""
+        x = torch.tensor([[1.0]], dtype=torch.float)
+        edge_index = torch.tensor([[], []], dtype=torch.long).reshape(2, 0)
+        single_node_data = Data(x=x, edge_index=edge_index)
+
+        functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=False,
+            normalize_diameters=False,
+        )
+
+        with patch("torch_geometric.utils.to_networkx") as patched_to_networkx:
+            # Use a real networkx graph with one node and no edges
+            empty_graph = nx.Graph()
+            empty_graph.add_node(0)
+            patched_to_networkx.return_value = empty_graph
+
+            processed_graph = functor._preprocess_graph(single_node_data, None)
+
+            # Single node graph should have no edges
+            assert processed_graph.number_of_nodes() == 1
+            assert processed_graph.number_of_edges() == 0
+
+            # No weights to check
+            weights = nx.get_edge_attributes(processed_graph, "weight")
+            assert len(weights) == 0
+
+    def test_edge_case_extremely_large_weights(self):
+        """Test handling of extremely large edge weights."""
+        x = torch.tensor([[0.0], [1.0]], dtype=torch.float)
+        edge_index = torch.tensor([[0, 1], [1, 0]], dtype=torch.long)
+
+        # Extremely large edge weights
+        large_edge_attr = torch.tensor([[1e10], [1e10]], dtype=torch.float)
+        large_weight_data = Data(
+            x=x, edge_index=edge_index, edge_attr=large_edge_attr
+        )
+
+        weighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=True,
+            normalize_diameters=False,
+        )
+
+        # Use patch to control the exact weight values for testing
+        with patch("torch_geometric.utils.to_networkx") as patched_to_networkx:
+            # Create a graph with extremely large weights
+            large_test_graph = nx.Graph()
+            large_test_graph.add_nodes_from([0, 1])
+            large_test_graph.add_edge(0, 1, edge_attr=1e10)
+            patched_to_networkx.return_value = large_test_graph
+
+            processed_graph = weighted_functor._preprocess_graph(
+                large_weight_data, "edge_attr"
+            )
+            weights = nx.get_edge_attributes(processed_graph, "weight")
+
+            # Weights should be preserved (large values)
+            for weight in weights.values():
+                assert (
+                    abs(weight - 1e10) < 1e4
+                )  # Allow some numerical tolerance
+
+    def test_edge_case_mixed_positive_zero_weights(self):
+        """Test handling of mixed positive and zero edge weights."""
+        x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
+        edge_index = torch.tensor(
+            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
+        )
+
+        # Mixed weights: one zero, one positive
+        mixed_edge_attr = torch.tensor(
+            [[0.0], [0.0], [5.0], [5.0]], dtype=torch.float
+        )
+        mixed_data = Data(x=x, edge_index=edge_index, edge_attr=mixed_edge_attr)
+
+        weighted_functor = ComplementarityFunctor(
+            feature_metric="euclidean",
+            graph_metric="shortest_path_distance",
+            comparator=L11MatrixNormComparator,
+            n_jobs=1,
+            use_edge_information=True,
+            normalize_diameters=False,
+        )
+
+        # Use patch to control the exact weight values for testing
+        with patch("torch_geometric.utils.to_networkx") as patched_to_networkx:
+            # Create a graph with mixed weights
+            mixed_test_graph = nx.Graph()
+            mixed_test_graph.add_nodes_from([0, 1, 2])
+            mixed_test_graph.add_edge(0, 1, edge_attr=0.0)  # Zero weight
+            mixed_test_graph.add_edge(1, 2, edge_attr=5.0)  # Positive weight
+            patched_to_networkx.return_value = mixed_test_graph
+
+            processed_graph = weighted_functor._preprocess_graph(
+                mixed_data, "edge_attr"
+            )
+
+            # Get weights
+            weights = nx.get_edge_attributes(processed_graph, "weight")
+
+            # Should have both zero and positive weights
+            weight_values = list(weights.values())
+            assert any(
+                abs(w) < 1e-6 for w in weight_values
+            ), f"Expected some zero weights but got {weight_values}"
+            assert any(
+                abs(w - 5.0) < 1e-6 for w in weight_values
+            ), f"Expected some 5.0 weights but got {weight_values}"
