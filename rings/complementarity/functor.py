@@ -26,6 +26,11 @@ class ComplementarityFunctor(torch.nn.Module):
     how well node features align with the graph structure, with lower values indicating
     stronger alignment.
 
+    For disconnected graphs, the functor processes each connected component separately
+    and aggregates the results using a weighted average, where component sizes serve
+    as weights. This approach ensures that larger components have proportionally more
+    influence on the final complementarity score.
+
     Parameters
     ----------
     feature_metric : callable
@@ -437,18 +442,47 @@ class ComplementarityFunctor(torch.nn.Module):
         """
         Aggregate scores from multiple components using weighted average.
 
+        For disconnected graphs, this method computes a weighted average of
+        complementarity scores across all connected components. Each component's
+        score is weighted by its size (number of nodes), ensuring that larger
+        components have proportionally more influence on the final score.
+
+        This weighted averaging approach is chosen because:
+        1. **Representativeness**: Larger components contain more structural and
+           feature information, so their complementarity patterns are more
+           statistically significant.
+        2. **Stability**: Small components (especially isolated nodes) can have
+           extreme complementarity values that don't reflect the overall graph
+           structure-feature relationship.
+        3. **Interpretability**: The weighted average provides a graph-level
+           complementarity score that reflects the dominant structural patterns.
+
         Parameters
         ----------
         scores : list
-            List of complementarity scores.
+            List of complementarity scores for each connected component.
         sizes : list
-            List of component sizes (weights).
+            List of component sizes (number of nodes) used as weights.
 
         Returns
         -------
         float
-            Weighted average complementarity score.
+            Weighted average complementarity score across all components.
+
+        Notes
+        -----
+        If all component sizes are zero (edge case), falls back to simple
+        arithmetic mean with a warning.
+
+        Raises
+        ------
+        ValueError
+            If the lengths of scores and sizes lists don't match.
         """
+        # Ensure scores and sizes have the same length
+        if len(scores) != len(sizes):
+            raise ValueError("Scores and sizes must have the same length")
+
         # Compute the weighted average score
         if sum(sizes) > 0:
             return np.average(scores, weights=sizes)
