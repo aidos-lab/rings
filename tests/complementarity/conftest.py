@@ -1,8 +1,6 @@
 import pytest
 import numpy as np
-import networkx as nx
-import torch_geometric
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from rings.complementarity.comparator import L11MatrixNormComparator
 from rings.complementarity.functor import ComplementarityFunctor
 
@@ -34,26 +32,8 @@ def check_weights_approx(
         )
 
 
-# Mock patch for to_networkx to ensure consistent weight handling
-@pytest.fixture(autouse=True)
-def mock_to_networkx():
-    """Patch the to_networkx function to ensure consistent weight types."""
-    original_to_networkx = torch_geometric.utils.to_networkx
-
-    with patch("rings.complementarity.functor.to_networkx") as mock:
-
-        def patched_to_networkx(*args, **kwargs):
-            graph = original_to_networkx(*args, **kwargs)
-
-            # Set unweighted graph edges to exactly 1.0
-            if len(args) > 0 and not kwargs.get("edge_attrs"):
-                weights = {edge: 1.0 for edge in graph.edges()}
-                nx.set_edge_attributes(graph, weights, "weight")
-
-            return graph
-
-        mock.side_effect = patched_to_networkx
-        yield mock
+# Note: Removed the problematic autouse fixture that was causing conflicts
+# with individual test patches. Tests now handle their own mocking.
 
 
 @pytest.fixture(scope="function")
