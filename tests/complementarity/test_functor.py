@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch, call
 from torch_geometric.data import Data
 from rings.complementarity.functor import ComplementarityFunctor
 from rings.complementarity.comparator import L11MatrixNormComparator
+from tests.complementarity.conftest import check_weights_approx
 
 
 class TestComplementarityFunctor:
@@ -931,16 +932,12 @@ class TestComplementarityFunctor:
     def test_disconnected_graph_error_handling(self, functor):
         """Test error handling in disconnected graph scenarios."""
         # Test aggregation with mismatched scores and sizes
-        with pytest.raises(ValueError):
-            # This should raise an error if implemented properly
-            # For now, we'll test the current behavior
-            scores = [0.1, 0.5]  # 2 scores
-            sizes = [10, 2, 3]  # 3 sizes (mismatch)
-            # Note: Current implementation doesn't validate this, but it should
-            try:
-                functor._aggregate(scores, sizes)
-            except (IndexError, ValueError):
-                raise ValueError("Mismatched scores and sizes")
+        scores = [0.1, 0.5]  # 2 scores
+        sizes = [10, 2, 3]  # 3 sizes (mismatch)
+        with pytest.raises(
+            ValueError, match="Scores and sizes must have the same length"
+        ):
+            functor._aggregate(scores, sizes)
 
     def test_disconnected_graph_metric_consistency(self, functor):
         """Test that metrics are consistently applied across disconnected components."""
@@ -1182,7 +1179,6 @@ class TestComplementarityFunctor:
 
         # All weights should be 1.0 regardless of edge attributes
         # Import helper from conftest
-        from tests.complementarity.conftest import check_weights_approx
 
         check_weights_approx(weights, 1.0)
 
@@ -1211,7 +1207,6 @@ class TestComplementarityFunctor:
         weights = nx.get_edge_attributes(processed_graph, "weight")
 
         # Zero-magnitude edge attributes should result in zero weights
-        from tests.complementarity.conftest import check_weights_approx
 
         check_weights_approx(weights, 0.0)
 
@@ -1348,8 +1343,6 @@ class TestComplementarityFunctor:
         assert processed_graph.number_of_nodes() == 4
 
         # All edge weights should be 1.0 (unweighted)
-        from tests.complementarity.conftest import check_weights_approx
-
         weights = nx.get_edge_attributes(processed_graph, "weight")
         check_weights_approx(weights, 1.0)
 
@@ -1436,9 +1429,6 @@ class TestComplementarityFunctor:
             normalize_diameters=False,
         )
 
-        # Import helper from conftest
-        from tests.complementarity.conftest import check_weights_approx
-
         # Mock components and lift functions
         with patch(
             "rings.complementarity.functor.nx.is_connected", return_value=False
@@ -1494,9 +1484,6 @@ class TestComplementarityFunctor:
 
     def test_unweighted_graph_consistency_across_topologies(self):
         """Test that unweighted processing is consistent across different topologies."""
-        # Import helper from conftest
-        from tests.complementarity.conftest import check_weights_approx
-
         test_cases = [
             # Path graph: 0 -- 1 -- 2
             {
@@ -1815,9 +1802,6 @@ class TestComplementarityFunctor:
             data_no_attrs, None
         )
         weights = nx.get_edge_attributes(processed_graph, "weight")
-
-        # Import helper from conftest
-        from tests.complementarity.conftest import check_weights_approx
 
         check_weights_approx(weights, 1.0)
 
