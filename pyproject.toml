@@ -20,5 +20,6 @@ dev = [
     "ipykernel>=6.29.5",
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
+    "ruff>=0.15.13",
     "sphinx>=8.2.3",
 ]
