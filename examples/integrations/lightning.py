@@ -13,9 +13,22 @@ This example shows the canonical recipe when you're using Lightning:
 5. Call ``study.evaluate()`` for the pairwise separability table.
 
 Usage:
-    pip install -e .[lightning]
-    uv run python examples/lightning_separability.py
+    uv pip install -e .[lightning]
+    uv run python -m examples.integrations.lightning
 """
+
+import logging
+import os
+import warnings
+
+# Quiet Lightning before importing it: drop info-level chatter ("GPU available...",
+# "Seed set...", "LOCAL_RANK...", "Trainer.fit stopped..."), the litlogger tip,
+# and the usual deprecation warnings. Lightning emits these through several
+# logger namespaces (and some via print), so we disable INFO-and-below globally
+# while the script runs and restore it before exiting `main`.
+os.environ.setdefault("PYTHONWARNINGS", "ignore")
+warnings.filterwarnings("ignore")
+logging.disable(logging.WARNING)
 
 import pytorch_lightning as pl
 import torch
@@ -30,7 +43,9 @@ from rings.integrations import SeparabilityCallback, SeparabilityStudy
 
 
 class GCNClassifier(pl.LightningModule):
-    def __init__(self, num_node_features, num_classes, hidden_channels=64, lr=0.01):
+    def __init__(
+        self, num_node_features, num_classes, hidden_channels=64, lr=0.01
+    ):
         super().__init__()
         self.save_hyperparameters()
         self.conv1 = GCNConv(num_node_features, hidden_channels)
@@ -63,7 +78,9 @@ class GCNClassifier(pl.LightningModule):
 def make_datamodule(dataset, seed: int, batch_size: int = 32) -> LightningDataset:
     n = len(dataset)
     split = int(0.8 * n)
-    perm = torch.randperm(n, generator=torch.Generator().manual_seed(seed)).tolist()
+    perm = torch.randperm(
+        n, generator=torch.Generator().manual_seed(seed)
+    ).tolist()
     train_ds = dataset[perm[:split]]
     test_ds = dataset[perm[split:]]
     return LightningDataset(
@@ -102,6 +119,7 @@ def main():
             max_epochs=20,
             enable_progress_bar=False,
             enable_model_summary=False,
+            enable_checkpointing=False,
             logger=False,
             callbacks=[SeparabilityCallback(study, perturbation_name=name)],
         )
