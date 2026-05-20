@@ -3,7 +3,29 @@ name = "rings-evaluation"
 version = "0.1.0"
 description = "RINGS: Relevant Information in Node Features and Graph Structure. An evaluation framework for graph-learning based on first principles."
 readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
+authors = [
+    { name = "Jeremy Wayland", email = "jeremy.don.wayland@gmail.com" },
+    { name = "Corinna Coupette", email = "corinna.coupette@aalto.fi" },
+    { name = "Emily Simons", email = "emsimons4@gmail.com" },
+    { name = "Bastian Rieck", email = "bastian.grossenbacher@unifr.ch" },
+]
+keywords = [
+    "graph-learning",
+    "graph-neural-networks",
+    "dataset-evaluation",
+    "perturbation",
+    "separability",
+    "complementarity",
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
 dependencies = [
     "networkx>=3.4.2",
     "pot>=0.9.5",
@@ -14,7 +36,13 @@ dependencies = [
     "torchvision>=0.22.0",
 ]
 
-[dependency-groups]
+[project.urls]
+Documentation = "https://aidos.group/rings/"
+Repository = "https://github.com/aidos-lab/rings"
+Issues = "https://github.com/aidos-lab/rings/issues"
+Paper = "https://proceedings.mlr.press/v267/coupette25a.html"
+
+[project.optional-dependencies]
 dev = [
     "furo>=2024.8.6",
     "ipykernel>=6.29.5",
@@ -23,3 +51,17 @@ dev = [
     "ruff>=0.15.13",
     "sphinx>=8.2.3",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["rings-evaluation"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/rings",
+    "/README.md",
+    "/LICENSE",
+]
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
