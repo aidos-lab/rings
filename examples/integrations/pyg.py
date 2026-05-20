@@ -79,13 +79,14 @@ def train_and_eval(dataset, seed, epochs=20):
 
 def main():
     dataset = TUDataset(root="data/TUDataset", name="MUTAG")
+    max_nodes = max(g.num_nodes for g in dataset)
 
     study = SeparabilityStudy(
         perturbations={
             "Original": Original(),
             "EmptyGraph": EmptyGraph(),
             "RandomFeatures": RandomFeatures(shuffle=True),
-            "CompleteFeatures": CompleteFeatures(),
+            "CompleteFeatures": CompleteFeatures(max_nodes=max_nodes),
         },
         num_seeds=5,
         comparator="ks",

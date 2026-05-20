@@ -75,13 +75,14 @@ def make_datamodule(dataset, seed: int, batch_size: int = 32) -> LightningDatase
 
 def main():
     base_dataset = TUDataset(root="data/TUDataset", name="MUTAG")
+    max_nodes = max(g.num_nodes for g in base_dataset)
 
     study = SeparabilityStudy(
         perturbations={
             "Original": Original(),
             "EmptyGraph": EmptyGraph(),
             "RandomFeatures": RandomFeatures(shuffle=True),
-            "CompleteFeatures": CompleteFeatures(),
+            "CompleteFeatures": CompleteFeatures(max_nodes=max_nodes),
         },
         num_seeds=5,
         comparator="ks",
