@@ -1,7 +1,6 @@
 """This module contains classes that compare metric spaces (i.e. pairwise distance matrices)."""
 
 import numpy as np
-from typing import Dict, Optional
 
 
 class MatrixNormComparator:

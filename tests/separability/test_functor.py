@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
 import pandas as pd
-import sys
 
 from rings.separability.functor import SeparabilityFunctor
 
@@ -30,7 +29,6 @@ class DummyComparator:
 
 
 class TestSeparabilityFunctor:
-
     def test_forward_multiple_distributions_returns_dataframe(self):
         comparator = DummyComparator()
         functor = SeparabilityFunctor(comparator=comparator)

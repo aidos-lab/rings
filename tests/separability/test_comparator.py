@@ -9,9 +9,7 @@ class TestKSComparator:
         x = np.random.normal(0, 1, 100)
         y = np.random.normal(5, 1, 100)
         comparator = KSComparator()
-        result = comparator(
-            x, y, n_permutations=500, alpha=0.05, random_state=123
-        )
+        result = comparator(x, y, n_permutations=500, alpha=0.05, random_state=123)
         assert result["significant"] is True
         assert result["method"] == "KS"
         assert 0 <= result["pvalue"] <= 1
@@ -26,9 +24,7 @@ class TestKSComparator:
         result = comparator(
             x, y, n_permutations=200, n_hypotheses=n_hypotheses, random_state=42
         )
-        assert result["pvalue_adjusted"] == min(
-            1.0, result["pvalue"] * n_hypotheses
-        )
+        assert result["pvalue_adjusted"] == min(1.0, result["pvalue"] * n_hypotheses)
         assert result["method"] == "KS"
 
     def test_ks_comparator_empty_input(self):
@@ -46,9 +42,7 @@ class TestWilcoxonComparator:
         x = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
         y = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
         comparator = WilcoxonComparator()
-        result = comparator(
-            x, y, n_permutations=100, alpha=0.05, random_state=123
-        )
+        result = comparator(x, y, n_permutations=100, alpha=0.05, random_state=123)
         assert result["significant"] is False
         assert result["method"] == "Wilcoxon"
         assert 0 <= result["pvalue"] <= 1

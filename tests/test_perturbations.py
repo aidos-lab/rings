@@ -1,4 +1,3 @@
-import pytest
 import torch
 from torch_geometric.data import Data
 
@@ -34,9 +33,7 @@ class TestPerturbations:
         self.path_edge_index = torch.tensor(
             [[0, 1, 1, 2, 2, 3], [1, 0, 2, 1, 3, 2]], dtype=torch.long
         )
-        self.path_data = Data(
-            x=self.x, edge_index=self.path_edge_index, num_nodes=4
-        )
+        self.path_data = Data(x=self.x, edge_index=self.path_edge_index, num_nodes=4)
 
         # Set fixed seed for reproducibility
         torch.manual_seed(42)
@@ -185,15 +182,10 @@ class TestPerturbations:
         transformed_data = transform(self.data.clone())
 
         # Check that the number of edges remains the same
-        assert (
-            transformed_data.edge_index.shape[1]
-            == self.data.edge_index.shape[1]
-        )
+        assert transformed_data.edge_index.shape[1] == self.data.edge_index.shape[1]
 
         # Check that the edges were actually shuffled
-        assert not torch.equal(
-            transformed_data.edge_index, self.data.edge_index
-        )
+        assert not torch.equal(transformed_data.edge_index, self.data.edge_index)
 
         # Check that node features remain unchanged
         assert torch.equal(transformed_data.x, self.data.x)
@@ -205,15 +197,6 @@ class TestPerturbations:
         transform = RandomGraph(p=p)
         transformed_data = transform(self.data.clone())
 
-        # Expected number of edges with p=0.5
-        n = self.data.num_nodes
-        expected_num_edges = (
-            int(p * n * (n - 1) / 2) * 2
-        )  # Bidirectional, but estimate might be slightly off
-
-        # Check edge count is reasonable (considering randomness)
-        actual_edges = transformed_data.edge_index.shape[1]
-
         # Check that node features remain unchanged
         assert torch.equal(transformed_data.x, self.data.x)
 
@@ -223,9 +206,7 @@ class TestPerturbations:
     def test_random_graph_transform_documentation_example(self):
         """Test RandomGraph transform using the example from documentation."""
         # Create a simple graph as shown in documentation
-        edge_index = torch.tensor(
-            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
-        )
+        edge_index = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
         data = Data(edge_index=edge_index, num_nodes=4)
 
         # Example from documentation: Random graph with same number of edges
@@ -247,15 +228,10 @@ class TestPerturbations:
         transformed_data = transform(self.data.clone())
 
         # Check that the number of edges remains the same
-        assert (
-            transformed_data.edge_index.shape[1]
-            == self.data.edge_index.shape[1]
-        )
+        assert transformed_data.edge_index.shape[1] == self.data.edge_index.shape[1]
 
         # Check that the edges were actually shuffled
-        assert not torch.equal(
-            transformed_data.edge_index, self.data.edge_index
-        )
+        assert not torch.equal(transformed_data.edge_index, self.data.edge_index)
 
         # Check that node features remain unchanged
         assert torch.equal(transformed_data.x, self.data.x)
@@ -272,9 +248,7 @@ class TestPerturbations:
 
         # Expected number of edges with p=0.5 but need at least n-1 for connected
         n = self.data.num_nodes
-        min_edges_for_connected = (
-            n - 1
-        )  # Minimum edges needed for a connected graph
+        min_edges_for_connected = n - 1  # Minimum edges needed for a connected graph
 
         # Check that we have at least the minimum required edges
         assert transformed_data.edge_index.shape[1] >= min_edges_for_connected
@@ -308,9 +282,7 @@ class TestPerturbations:
 
         # Test multiple times to ensure consistency
         for _ in range(5):
-            transform = RandomConnectedGraph(
-                p=0.1
-            )  # Low probability to test edge case
+            transform = RandomConnectedGraph(p=0.1)  # Low probability to test edge case
             result = transform(disconnected_data.clone())
             assert is_connected(result)
 

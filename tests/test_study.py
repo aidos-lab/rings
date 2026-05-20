@@ -20,9 +20,7 @@ class TestSeparabilityStudy:
             SeparabilityStudy(perturbations={})
 
     def test_comparator_string_shortcuts(self):
-        s = SeparabilityStudy(
-            perturbations={"Original": Original()}, comparator="ks"
-        )
+        s = SeparabilityStudy(perturbations={"Original": Original()}, comparator="ks")
         assert isinstance(s.comparator, KSComparator)
         s = SeparabilityStudy(
             perturbations={"Original": Original()}, comparator="wilcoxon"

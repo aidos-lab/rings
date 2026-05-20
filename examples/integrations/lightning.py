@@ -29,22 +29,20 @@ os.environ.setdefault("PYTHONWARNINGS", "ignore")
 warnings.filterwarnings("ignore")
 logging.disable(logging.WARNING)
 
-import pytorch_lightning as pl
-import torch
-import torch.nn.functional as F
-from torch.nn import Linear
-from torch_geometric.data.lightning import LightningDataset
-from torch_geometric.datasets import TUDataset
-from torch_geometric.nn import GCNConv, global_mean_pool
+import pytorch_lightning as pl  # noqa: E402
+import torch  # noqa: E402
+import torch.nn.functional as F  # noqa: E402
+from torch.nn import Linear  # noqa: E402
+from torch_geometric.data.lightning import LightningDataset  # noqa: E402
+from torch_geometric.datasets import TUDataset  # noqa: E402
+from torch_geometric.nn import GCNConv, global_mean_pool  # noqa: E402
 
-from rings import CompleteFeatures, EmptyGraph, Original, RandomFeatures
-from rings.integrations import SeparabilityCallback, SeparabilityStudy
+from rings import CompleteFeatures, EmptyGraph, Original, RandomFeatures  # noqa: E402
+from rings.integrations import SeparabilityCallback, SeparabilityStudy  # noqa: E402
 
 
 class GCNClassifier(pl.LightningModule):
-    def __init__(
-        self, num_node_features, num_classes, hidden_channels=64, lr=0.01
-    ):
+    def __init__(self, num_node_features, num_classes, hidden_channels=64, lr=0.01):
         super().__init__()
         self.save_hyperparameters()
         self.conv1 = GCNConv(num_node_features, hidden_channels)
@@ -77,9 +75,7 @@ class GCNClassifier(pl.LightningModule):
 def make_datamodule(dataset, seed: int, batch_size: int = 32) -> LightningDataset:
     n = len(dataset)
     split = int(0.8 * n)
-    perm = torch.randperm(
-        n, generator=torch.Generator().manual_seed(seed)
-    ).tolist()
+    perm = torch.randperm(n, generator=torch.Generator().manual_seed(seed)).tolist()
     train_ds = dataset[perm[:split]]
     test_ds = dataset[perm[split:]]
     return LightningDataset(

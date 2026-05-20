@@ -4,7 +4,7 @@ import torch
 import networkx as nx
 import pandas as pd
 import warnings
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 from torch_geometric.data import Data
 from rings.complementarity.functor import ComplementarityFunctor
@@ -13,10 +13,7 @@ from tests.complementarity.conftest import check_weights_approx
 
 
 class TestComplementarityFunctor:
-
-    def test_init(
-        self, mock_feature_metric, mock_graph_metric, mock_comparator
-    ):
+    def test_init(self, mock_feature_metric, mock_graph_metric, mock_comparator):
         """Test initialization of ComplementarityFunctor."""
         functor = ComplementarityFunctor(
             feature_metric=mock_feature_metric,
@@ -63,9 +60,7 @@ class TestComplementarityFunctor:
         )
 
         assert functor.use_edge_information is True
-        assert (
-            functor.edge_attr == "custom_edge_weight"
-        )  # Custom edge attribute name
+        assert functor.edge_attr == "custom_edge_weight"  # Custom edge attribute name
         mock_comparator.assert_called_once_with(n_jobs=1)
 
     @patch("rings.complementarity.functor.to_networkx")
@@ -205,13 +200,11 @@ class TestComplementarityFunctor:
         with patch.object(nx, "is_connected", return_value=True):
             with patch.object(
                 nx, "get_node_attributes", return_value={0: [1, 2], 1: [3, 4]}
-            ) as mock_get_node:
+            ):
                 with patch.object(
                     nx, "get_edge_attributes", return_value={(0, 1): [0.5, 0.5]}
                 ) as mock_get_edge:
-                    with patch.object(
-                        nx, "set_edge_attributes"
-                    ) as mock_set_edge:
+                    with patch.object(nx, "set_edge_attributes") as mock_set_edge:
                         # Apply patching for internal methods
                         with patch.object(
                             functor,
@@ -219,9 +212,7 @@ class TestComplementarityFunctor:
                             return_value={"complementarity": 0.5},
                         ):
                             # Run forward with as_dataframe=False to get tensor outputs
-                            result = functor.forward(
-                                [test_data], as_dataframe=False
-                            )
+                            functor.forward([test_data], as_dataframe=False)
 
                         # Check edge attribute processing (inside context manager)
                         mock_to_networkx.assert_called_with(
@@ -266,9 +257,7 @@ class TestComplementarityFunctor:
             patch.object(
                 functor, "_compute_scores", return_value=[0.5]
             ) as mock_compute_scores,
-            patch.object(
-                functor, "_aggregate", return_value=0.5
-            ) as mock_aggregate,
+            patch.object(functor, "_aggregate", return_value=0.5) as mock_aggregate,
         ):
             # Call the function
             result = functor._compute_complementarity(G)
@@ -323,7 +312,7 @@ class TestComplementarityFunctor:
                     [np.array([[0, 1], [1, 0]])],
                     [2],
                 ),
-            ) as mock_lift_metrics,
+            ),
             patch.object(
                 functor,
                 "_normalize_metrics",
@@ -331,18 +320,11 @@ class TestComplementarityFunctor:
                     [np.array([[0, 2], [2, 0]])],
                     [np.array([[0, 1], [1, 0]])],
                 ),
-            ) as mock_normalize_metrics,
-            patch.object(
-                functor, "_compute_scores", return_value=[0.5]
-            ) as mock_compute_scores,
-            patch.object(
-                functor, "_aggregate", return_value=0.5
-            ) as mock_aggregate,
+            ),
+            patch.object(functor, "_compute_scores", return_value=[0.5]),
+            patch.object(functor, "_aggregate", return_value=0.5),
         ):
-
-            result = functor._compute_complementarity(
-                G, return_metric_spaces=True
-            )
+            result = functor._compute_complementarity(G, return_metric_spaces=True)
 
             # Check result contains metric spaces
             assert "complementarity" in result
@@ -392,9 +374,7 @@ class TestComplementarityFunctor:
         G = nx.Graph()
         G.add_nodes_from([0, 1, 2, 3])
         G.add_edges_from([(0, 1), (2, 3)])
-        nx.set_node_attributes(
-            G, {0: [1, 2], 1: [3, 4], 2: [5, 6], 3: [7, 8]}, "x"
-        )
+        nx.set_node_attributes(G, {0: [1, 2], 1: [3, 4], 2: [5, 6], 3: [7, 8]}, "x")
         X = np.array([[1, 2], [3, 4], [5, 6], [7, 8]])
 
         # Mock the lift functions
@@ -538,8 +518,8 @@ class TestComplementarityFunctor:
             nx,
             "get_edge_attributes",
             return_value={(0, 1): [0.5, 0.5], (1, 0): [0.5, 0.5]},
-        ) as mock_get_edge1:
-            with patch.object(nx, "set_edge_attributes") as mock_set_edge1:
+        ):
+            with patch.object(nx, "set_edge_attributes"):
                 # Test without edge information
                 functor.use_edge_information = False
                 functor._preprocess_graph(test_data, None)
@@ -605,9 +585,7 @@ class TestComplementarityFunctor:
             result = functor._process_single(test_data)
 
             # Check that methods were called and correct result returned
-            mock_preprocess.assert_called_once_with(
-                test_data, functor.edge_attr
-            )
+            mock_preprocess.assert_called_once_with(test_data, functor.edge_attr)
             mock_compute_complementarity.assert_called_once()
             assert result["complementarity"] == 0.5
 
@@ -625,9 +603,7 @@ class TestComplementarityFunctor:
         functor.edge_attr = "edge_attr"
 
         # Test with mock for lift_graph to verify weight param is passed
-        with patch(
-            "rings.complementarity.functor.lift_graph"
-        ) as mock_lift_graph:
+        with patch("rings.complementarity.functor.lift_graph") as mock_lift_graph:
             mock_lift_graph.return_value = np.array([[0, 1], [1, 0]])
 
             # Also mock other required functions
@@ -662,9 +638,7 @@ class TestComplementarityFunctor:
         functor.edge_attr = None  # Ensure edge attribute is not set
 
         # Test with mock for lift_graph to verify weight param is not passed
-        with patch(
-            "rings.complementarity.functor.lift_graph"
-        ) as mock_lift_graph:
+        with patch("rings.complementarity.functor.lift_graph") as mock_lift_graph:
             mock_lift_graph.return_value = np.array([[0, 1], [1, 0]])
 
             # Also mock other required functions
@@ -721,9 +695,7 @@ class TestComplementarityFunctor:
             G_weighted, weighted_functor.edge_attr
         )
 
-        assert (
-            processed_G.number_of_edges() == 7
-        )  # All edges should be included
+        assert processed_G.number_of_edges() == 7  # All edges should be included
         weights = nx.get_edge_attributes(processed_G, "weight")
         assert weights, "Edge attribute 'weight' should not be empty"
 
@@ -736,9 +708,9 @@ class TestComplementarityFunctor:
             normalize_diameters=True,
         )
 
-        assert (
-            unweighted_functor.edge_attr is None
-        ), "Edge attribute should be empty for unweighted functor"
+        assert unweighted_functor.edge_attr is None, (
+            "Edge attribute should be empty for unweighted functor"
+        )
 
     def test_correct_weight_parameter_passing(self, functor):
         """Test that the weight parameter is correctly passed through from functor to the graph metric."""
@@ -755,12 +727,8 @@ class TestComplementarityFunctor:
         functor.edge_attr = "edge_attr"
 
         # Mock the lift_graph function to check if weight is passed
-        with patch(
-            "rings.complementarity.functor.lift_graph"
-        ) as mock_lift_graph:
-            mock_lift_graph.return_value = np.array(
-                [[0, 1, 6], [1, 0, 5], [6, 5, 0]]
-            )
+        with patch("rings.complementarity.functor.lift_graph") as mock_lift_graph:
+            mock_lift_graph.return_value = np.array([[0, 1, 6], [1, 0, 5], [6, 5, 0]])
 
             # Also mock other required functions for _lift_metrics
             with (
@@ -858,9 +826,7 @@ class TestComplementarityFunctor:
         result = functor._aggregate(scores, sizes)
 
         assert abs(result - expected) < 1e-10
-        assert (
-            result < 0.12
-        )  # Should be close to 0.1 due to large component weight
+        assert result < 0.12  # Should be close to 0.1 due to large component weight
 
     def test_disconnected_graph_edge_cases(self, functor):
         """Test edge cases in disconnected graph processing."""
@@ -995,9 +961,7 @@ class TestComplementarityFunctor:
 
     @patch("rings.complementarity.functor.to_networkx")
     @patch.object(ComplementarityFunctor, "_process_single")
-    def test_forward_as_dataframe(
-        self, mock_process_single, mock_to_networkx, functor
-    ):
+    def test_forward_as_dataframe(self, mock_process_single, mock_to_networkx, functor):
         """Test forward method with as_dataframe=True."""
         # Setup mock
         mock_process_single.return_value = {
@@ -1014,15 +978,13 @@ class TestComplementarityFunctor:
         result = functor.forward([test_data], as_dataframe=True)
 
         # Check results
-        assert isinstance(
-            result, pd.DataFrame
-        ), "Result should be a pandas DataFrame"
-        assert (
-            "complementarity" in result.columns
-        ), "Result should have 'complementarity' column"
-        assert (
-            "other_metric" in result.columns
-        ), "Result should have other metric columns"
+        assert isinstance(result, pd.DataFrame), "Result should be a pandas DataFrame"
+        assert "complementarity" in result.columns, (
+            "Result should have 'complementarity' column"
+        )
+        assert "other_metric" in result.columns, (
+            "Result should have other metric columns"
+        )
         assert len(result) == 1, "DataFrame should have one row for one graph"
         assert result["complementarity"].iloc[0] == 0.5
 
@@ -1030,13 +992,9 @@ class TestComplementarityFunctor:
         """Test detailed metric space computation for weighted graphs."""
         # Create a weighted graph where edge weights should affect shortest path calculations
         x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
-        edge_index = torch.tensor(
-            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
-        )
+        edge_index = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
         # Heavy weight between 1-2, light weight between 0-1
-        edge_attr = torch.tensor(
-            [[1.0], [1.0], [10.0], [10.0]], dtype=torch.float
-        )
+        edge_attr = torch.tensor([[1.0], [1.0], [10.0], [10.0]], dtype=torch.float)
         weighted_data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr)
 
         # Create weighted functor
@@ -1050,9 +1008,7 @@ class TestComplementarityFunctor:
         )
 
         # Test with real to_networkx function
-        processed_graph = weighted_functor._preprocess_graph(
-            weighted_data, "edge_attr"
-        )
+        processed_graph = weighted_functor._preprocess_graph(weighted_data, "edge_attr")
         assert isinstance(processed_graph, nx.Graph)
         weights = nx.get_edge_attributes(processed_graph, "weight")
 
@@ -1064,9 +1020,7 @@ class TestComplementarityFunctor:
             assert weight > 0  # Should have positive weights
 
         # Test that lift_graph is called with the weighted graph
-        with patch(
-            "rings.complementarity.functor.lift_graph"
-        ) as mock_lift_graph:
+        with patch("rings.complementarity.functor.lift_graph") as mock_lift_graph:
             mock_lift_graph.return_value = np.array(
                 [[0, 1, 11], [1, 0, 10], [11, 10, 0]]
             )
@@ -1094,25 +1048,17 @@ class TestComplementarityFunctor:
         """Test that weighted and unweighted graphs produce different metric spaces."""
         # Create identical graph structure with different edge weights
         x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
-        edge_index = torch.tensor(
-            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
-        )
+        edge_index = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
 
         # Version 1: Uniform weights
         uniform_edge_attr = torch.tensor(
             [[1.0], [1.0], [1.0], [1.0]], dtype=torch.float
         )
-        uniform_data = Data(
-            x=x, edge_index=edge_index, edge_attr=uniform_edge_attr
-        )
+        uniform_data = Data(x=x, edge_index=edge_index, edge_attr=uniform_edge_attr)
 
         # Version 2: Non-uniform weights
-        varied_edge_attr = torch.tensor(
-            [[1.0], [1.0], [5.0], [5.0]], dtype=torch.float
-        )
-        varied_data = Data(
-            x=x, edge_index=edge_index, edge_attr=varied_edge_attr
-        )
+        varied_edge_attr = torch.tensor([[1.0], [1.0], [5.0], [5.0]], dtype=torch.float)
+        varied_data = Data(x=x, edge_index=edge_index, edge_attr=varied_edge_attr)
 
         # Create weighted functors
         weighted_functor = ComplementarityFunctor(
@@ -1126,15 +1072,11 @@ class TestComplementarityFunctor:
 
         # Test with real to_networkx function
         # Process the uniform graph
-        uniform_graph = weighted_functor._preprocess_graph(
-            uniform_data, "edge_attr"
-        )
+        uniform_graph = weighted_functor._preprocess_graph(uniform_data, "edge_attr")
         uniform_weights = nx.get_edge_attributes(uniform_graph, "weight")
 
         # Process the varied graph
-        varied_graph = weighted_functor._preprocess_graph(
-            varied_data, "edge_attr"
-        )
+        varied_graph = weighted_functor._preprocess_graph(varied_data, "edge_attr")
         varied_weights = nx.get_edge_attributes(varied_graph, "weight")
 
         # Get unique edge weights from both graphs
@@ -1142,9 +1084,9 @@ class TestComplementarityFunctor:
         varied_weight_set = set(varied_weights.values())
 
         # Assert the graphs have different weight values
-        assert (
-            uniform_weight_set != varied_weight_set
-        ), f"Uniform: {uniform_weight_set}, Varied: {varied_weight_set}"
+        assert uniform_weight_set != varied_weight_set, (
+            f"Uniform: {uniform_weight_set}, Varied: {varied_weight_set}"
+        )
 
         # And the uniform graph should have only one unique weight value
         assert len(uniform_weight_set) == 1
@@ -1153,9 +1095,7 @@ class TestComplementarityFunctor:
         """Test that unweighted graphs always use unit weights."""
         # Create graph with edge attributes that should be ignored
         x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
-        edge_index = torch.tensor(
-            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
-        )
+        edge_index = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
         edge_attr = torch.tensor(
             [[100.0], [100.0], [0.1], [0.1]], dtype=torch.float
         )  # Extreme values
@@ -1172,9 +1112,7 @@ class TestComplementarityFunctor:
         )
 
         # Process graph - should ignore edge attributes
-        processed_graph = unweighted_functor._preprocess_graph(
-            data_with_attrs, None
-        )
+        processed_graph = unweighted_functor._preprocess_graph(data_with_attrs, None)
         weights = nx.get_edge_attributes(processed_graph, "weight")
 
         # All weights should be 1.0 regardless of edge attributes
@@ -1201,9 +1139,7 @@ class TestComplementarityFunctor:
         )
 
         # Test with real to_networkx function
-        processed_graph = weighted_functor._preprocess_graph(
-            zero_data, "edge_attr"
-        )
+        processed_graph = weighted_functor._preprocess_graph(zero_data, "edge_attr")
         weights = nx.get_edge_attributes(processed_graph, "weight")
 
         # Zero-magnitude edge attributes should result in zero weights
@@ -1214,13 +1150,9 @@ class TestComplementarityFunctor:
         multidim_edge_attr = torch.tensor(
             [[3.0, 4.0], [3.0, 4.0]], dtype=torch.float
         )  # Norm = 5.0
-        multidim_data = Data(
-            x=x, edge_index=edge_index, edge_attr=multidim_edge_attr
-        )
+        multidim_data = Data(x=x, edge_index=edge_index, edge_attr=multidim_edge_attr)
 
-        processed_graph = weighted_functor._preprocess_graph(
-            multidim_data, "edge_attr"
-        )
+        processed_graph = weighted_functor._preprocess_graph(multidim_data, "edge_attr")
         weights = nx.get_edge_attributes(processed_graph, "weight")
 
         # Multi-dimensional attributes should be converted to norms
@@ -1232,17 +1164,13 @@ class TestComplementarityFunctor:
         """Test that weighted and unweighted graphs preserve metric space properties."""
         # Create a simple path graph: 0 -- 1 -- 2
         x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
-        edge_index = torch.tensor(
-            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
-        )
+        edge_index = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
 
         # Weighted version with large weight on second edge
         heavy_edge_attr = torch.tensor(
             [[1.0], [1.0], [10.0], [10.0]], dtype=torch.float
         )
-        weighted_data = Data(
-            x=x, edge_index=edge_index, edge_attr=heavy_edge_attr
-        )
+        weighted_data = Data(x=x, edge_index=edge_index, edge_attr=heavy_edge_attr)
 
         # Test both functors
         weighted_functor = ComplementarityFunctor(
@@ -1271,9 +1199,7 @@ class TestComplementarityFunctor:
         unweighted_distances = np.array([[0, 1, 2], [1, 0, 1], [2, 1, 0]])
 
         # Use a sequence of patched returns to get the behavior we want
-        with patch(
-            "rings.complementarity.functor.lift_graph"
-        ) as mock_lift_graph:
+        with patch("rings.complementarity.functor.lift_graph") as mock_lift_graph:
             # Set up the return values for the calls
             mock_lift_graph.side_effect = [
                 weighted_distances,
@@ -1309,9 +1235,9 @@ class TestComplementarityFunctor:
                 unweighted_D_G = unweighted_result[1][0]  # Graph distances
 
                 # Distance from node 0 to node 2 should be different
-                assert (
-                    weighted_D_G[0, 2] > unweighted_D_G[0, 2]
-                ), f"Weighted: {weighted_D_G[0, 2]}, Unweighted: {unweighted_D_G[0, 2]}"
+                assert weighted_D_G[0, 2] > unweighted_D_G[0, 2], (
+                    f"Weighted: {weighted_D_G[0, 2]}, Unweighted: {unweighted_D_G[0, 2]}"
+                )
                 # Weighted should have larger distance due to heavy edge
                 assert weighted_D_G[0, 2] > 2 * unweighted_D_G[0, 2]
                 # Restate to be extra clear
@@ -1375,9 +1301,7 @@ class TestComplementarityFunctor:
             ]
         )
 
-        with patch(
-            "rings.complementarity.functor.lift_graph"
-        ) as mock_lift_graph:
+        with patch("rings.complementarity.functor.lift_graph") as mock_lift_graph:
             mock_lift_graph.return_value = expected_distances
 
             with patch(
@@ -1387,13 +1311,9 @@ class TestComplementarityFunctor:
                     [[0, 1, 2, 3], [1, 0, 1, 2], [2, 1, 0, 1], [3, 2, 1, 0]]
                 )
 
-                processed_graph = unweighted_functor._preprocess_graph(
-                    cycle_data, None
-                )
+                processed_graph = unweighted_functor._preprocess_graph(cycle_data, None)
                 X = np.array([[0.0], [1.0], [2.0], [3.0]])
-                result = unweighted_functor._lift_metrics(
-                    processed_graph, X, empty_graph=False
-                )
+                unweighted_functor._lift_metrics(processed_graph, X, empty_graph=False)
 
                 # Verify lift_graph was called with unweighted graph
                 mock_lift_graph.assert_called_once()
@@ -1430,9 +1350,7 @@ class TestComplementarityFunctor:
         )
 
         # Mock components and lift functions
-        with patch(
-            "rings.complementarity.functor.nx.is_connected", return_value=False
-        ):
+        with patch("rings.complementarity.functor.nx.is_connected", return_value=False):
             with patch(
                 "rings.complementarity.functor.nx.connected_components",
                 return_value=[{0, 1, 2}, {3, 4, 5}],
@@ -1441,9 +1359,7 @@ class TestComplementarityFunctor:
                     "rings.complementarity.functor.lift_graph"
                 ) as mock_lift_graph:
                     # Each triangle should have distances: 0->1=1, 0->2=1, 1->2=1
-                    triangle_distances = np.array(
-                        [[0, 1, 1], [1, 0, 1], [1, 1, 0]]
-                    )
+                    triangle_distances = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
                     mock_lift_graph.side_effect = [
                         triangle_distances,
                         triangle_distances,
@@ -1460,9 +1376,7 @@ class TestComplementarityFunctor:
                         processed_graph = unweighted_functor._preprocess_graph(
                             disconnected_data, None
                         )
-                        X = np.array(
-                            [[0.0], [1.0], [2.0], [10.0], [11.0], [12.0]]
-                        )
+                        X = np.array([[0.0], [1.0], [2.0], [10.0], [11.0], [12.0]])
                         D_X, D_G, sizes = unweighted_functor._lift_metrics(
                             processed_graph, X, empty_graph=False
                         )
@@ -1477,9 +1391,7 @@ class TestComplementarityFunctor:
                         for call_args in mock_lift_graph.call_args_list:
                             args, _ = call_args
                             called_graph = args[0]
-                            weights = nx.get_edge_attributes(
-                                called_graph, "weight"
-                            )
+                            weights = nx.get_edge_attributes(called_graph, "weight")
                             check_weights_approx(weights, 1.0)
 
     def test_unweighted_graph_consistency_across_topologies(self):
@@ -1526,26 +1438,22 @@ class TestComplementarityFunctor:
             processed_graph = unweighted_functor._preprocess_graph(data, None)
 
             # Verify correct number of edges
-            assert (
-                processed_graph.number_of_edges() == case["expected_edges"]
-            ), f"Failed for {case['name']}"
+            assert processed_graph.number_of_edges() == case["expected_edges"], (
+                f"Failed for {case['name']}"
+            )
 
             # Verify all weights are 1.0
             weights = nx.get_edge_attributes(processed_graph, "weight")
-            assert (
-                len(weights) == case["expected_edges"]
-            ), f"Missing weights for {case['name']}"  # Undirected edges stored once
+            assert len(weights) == case["expected_edges"], (
+                f"Missing weights for {case['name']}"
+            )  # Undirected edges stored once
 
-            check_weights_approx(
-                weights, 1.0, f"Wrong weight for {case['name']}"
-            )
+            check_weights_approx(weights, 1.0, f"Wrong weight for {case['name']}")
 
     def test_unweighted_graph_feature_independence(self):
         """Test that unweighted graph processing is independent of node features."""
         # Same graph structure with different node features
-        edge_index = torch.tensor(
-            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
-        )
+        edge_index = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
 
         # Case 1: Simple features
         x1 = torch.tensor([[1.0], [2.0], [3.0]], dtype=torch.float)
@@ -1572,14 +1480,8 @@ class TestComplementarityFunctor:
         processed_graph2 = unweighted_functor._preprocess_graph(data2, None)
 
         # Graph structures should be identical (same edges, same weights)
-        assert (
-            processed_graph1.number_of_edges()
-            == processed_graph2.number_of_edges()
-        )
-        assert (
-            processed_graph1.number_of_nodes()
-            == processed_graph2.number_of_nodes()
-        )
+        assert processed_graph1.number_of_edges() == processed_graph2.number_of_edges()
+        assert processed_graph1.number_of_nodes() == processed_graph2.number_of_nodes()
 
         weights1 = nx.get_edge_attributes(processed_graph1, "weight")
         weights2 = nx.get_edge_attributes(processed_graph2, "weight")
@@ -1593,9 +1495,7 @@ class TestComplementarityFunctor:
     def test_metric_space_triangle_inequality_preservation(self):
         """Test that metric spaces preserve triangle inequality property."""
         # Create a triangle graph where we can verify triangle inequality
-        x = torch.tensor(
-            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float
-        )
+        x = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=torch.float)
         edge_index = torch.tensor(
             [[0, 1, 2, 1, 2, 0], [1, 0, 0, 2, 1, 2]], dtype=torch.long
         )
@@ -1624,9 +1524,7 @@ class TestComplementarityFunctor:
             )
 
             # Mock lift functions to return valid distance matrices
-            with patch(
-                "rings.complementarity.functor.lift_graph"
-            ) as mock_lift_graph:
+            with patch("rings.complementarity.functor.lift_graph") as mock_lift_graph:
                 # Return a valid metric (triangle inequality preserved)
                 if use_edge_info:
                     # Weighted: different path costs
@@ -1682,9 +1580,7 @@ class TestComplementarityFunctor:
     def test_metric_space_symmetry_property(self):
         """Test that metric spaces preserve symmetry property."""
         x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
-        edge_index = torch.tensor(
-            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
-        )
+        edge_index = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
         path_data = Data(x=x, edge_index=edge_index)
 
         functor = ComplementarityFunctor(
@@ -1696,13 +1592,9 @@ class TestComplementarityFunctor:
             normalize_diameters=False,
         )
 
-        with patch(
-            "rings.complementarity.functor.lift_graph"
-        ) as mock_lift_graph:
+        with patch("rings.complementarity.functor.lift_graph") as mock_lift_graph:
             # Symmetric distance matrix
-            mock_lift_graph.return_value = np.array(
-                [[0, 1, 2], [1, 0, 1], [2, 1, 0]]
-            )
+            mock_lift_graph.return_value = np.array([[0, 1, 2], [1, 0, 1], [2, 1, 0]])
 
             with patch(
                 "rings.complementarity.functor.lift_attributes"
@@ -1724,15 +1616,9 @@ class TestComplementarityFunctor:
 
                 for i in range(3):
                     for j in range(3):
+                        assert abs(graph_distances[i, j] - graph_distances[j, i]) < 1e-6
                         assert (
-                            abs(graph_distances[i, j] - graph_distances[j, i])
-                            < 1e-6
-                        )
-                        assert (
-                            abs(
-                                feature_distances[i, j]
-                                - feature_distances[j, i]
-                            )
+                            abs(feature_distances[i, j] - feature_distances[j, i])
                             < 1e-6
                         )
 
@@ -1751,9 +1637,7 @@ class TestComplementarityFunctor:
             normalize_diameters=False,
         )
 
-        with patch(
-            "rings.complementarity.functor.lift_graph"
-        ) as mock_lift_graph:
+        with patch("rings.complementarity.functor.lift_graph") as mock_lift_graph:
             mock_lift_graph.return_value = np.array([[0, 1], [1, 0]])
 
             with patch(
@@ -1798,9 +1682,7 @@ class TestComplementarityFunctor:
         )
 
         # Should use unit weights when no edge attributes
-        processed_graph = weighted_functor._preprocess_graph(
-            data_no_attrs, None
-        )
+        processed_graph = weighted_functor._preprocess_graph(data_no_attrs, None)
         weights = nx.get_edge_attributes(processed_graph, "weight")
 
         check_weights_approx(weights, 1.0)
@@ -1838,9 +1720,7 @@ class TestComplementarityFunctor:
 
         # Extremely large edge weights
         large_edge_attr = torch.tensor([[1e10], [1e10]], dtype=torch.float)
-        large_weight_data = Data(
-            x=x, edge_index=edge_index, edge_attr=large_edge_attr
-        )
+        large_weight_data = Data(x=x, edge_index=edge_index, edge_attr=large_edge_attr)
 
         weighted_functor = ComplementarityFunctor(
             feature_metric="euclidean",
@@ -1864,14 +1744,10 @@ class TestComplementarityFunctor:
     def test_edge_case_mixed_positive_zero_weights(self):
         """Test handling of mixed positive and zero edge weights."""
         x = torch.tensor([[0.0], [1.0], [2.0]], dtype=torch.float)
-        edge_index = torch.tensor(
-            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
-        )
+        edge_index = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
 
         # Mixed weights: one zero, one positive
-        mixed_edge_attr = torch.tensor(
-            [[0.0], [0.0], [5.0], [5.0]], dtype=torch.float
-        )
+        mixed_edge_attr = torch.tensor([[0.0], [0.0], [5.0], [5.0]], dtype=torch.float)
         mixed_data = Data(x=x, edge_index=edge_index, edge_attr=mixed_edge_attr)
 
         weighted_functor = ComplementarityFunctor(
@@ -1884,18 +1760,16 @@ class TestComplementarityFunctor:
         )
 
         # Test with real to_networkx function
-        processed_graph = weighted_functor._preprocess_graph(
-            mixed_data, "edge_attr"
-        )
+        processed_graph = weighted_functor._preprocess_graph(mixed_data, "edge_attr")
 
         # Get weights
         weights = nx.get_edge_attributes(processed_graph, "weight")
 
         # Should have both zero and positive weights
         weight_values = list(weights.values())
-        assert any(
-            abs(w) < 1e-6 for w in weight_values
-        ), f"Expected some zero weights but got {weight_values}"
-        assert any(
-            abs(w - 5.0) < 1e-6 for w in weight_values
-        ), f"Expected some 5.0 weights but got {weight_values}"
+        assert any(abs(w) < 1e-6 for w in weight_values), (
+            f"Expected some zero weights but got {weight_values}"
+        )
+        assert any(abs(w - 5.0) < 1e-6 for w in weight_values), (
+            f"Expected some 5.0 weights but got {weight_values}"
+        )

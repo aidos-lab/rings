@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 from rings.complementarity.utils import maybe_normalize_diameter
 

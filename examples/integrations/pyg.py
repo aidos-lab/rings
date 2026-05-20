@@ -42,9 +42,7 @@ def train_and_eval(dataset, seed, epochs=20):
 
     n = len(dataset)
     split = int(0.8 * n)
-    perm = torch.randperm(
-        n, generator=torch.Generator().manual_seed(seed)
-    ).tolist()
+    perm = torch.randperm(n, generator=torch.Generator().manual_seed(seed)).tolist()
     train_ds = dataset[perm[:split]]
     test_ds = dataset[perm[split:]]
 
