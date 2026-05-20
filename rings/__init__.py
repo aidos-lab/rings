@@ -6,6 +6,7 @@ from rings.perturbations import (
     CompleteFeatures,
     CompleteGraph,
 )
+from rings import integrations
 
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "RandomFeatures",
     "CompleteFeatures",
     "CompleteGraph",
+    "integrations",
 ]
