@@ -14,11 +14,6 @@ dependencies = [
     "torchvision>=0.22.0",
 ]
 
-[project.optional-dependencies]
-lightning = [
-    "pytorch-lightning>=2.0",
-]
-
 [dependency-groups]
 dev = [
     "furo>=2024.8.6",
