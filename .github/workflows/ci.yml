@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Check package version matches __init__
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+          import tomllib
+
+          pyproject_version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          init_text = Path("rings/__init__.py").read_text()
+          init_version = re.search(r'^__version__ = "([^"]+)"$', init_text, re.MULTILINE)
+
+          if init_version is None:
+              sys.exit("Could not find __version__ in rings/__init__.py")
+
+          if pyproject_version != init_version.group(1):
+              sys.exit(
+                  f"Version mismatch: pyproject.toml has {pyproject_version}, "
+                  f"rings/__init__.py has {init_version.group(1)}"
+              )
+          PY
+
+
+      - name: Install dependencies
+        run: uv sync --group dev --python ${{ matrix.python-version }}
+
+      - name: Run Python tests
+        run: uv run pytest -v
+
+      - name: Run Ruff lint checks
+        if: matrix.python-version == '3.13'
+        run: uv run ruff check rings examples tests
+
+      - name: Run Ruff formatting checks
+        if: matrix.python-version == '3.13'
+        run: uv run ruff format --check rings examples tests
