@@ -8,6 +8,18 @@ RINGS is a perturbation framework for attributed graphs that lets you evaluate g
 
 ## Install
 
+Install from [PyPI](https://pypi.org/project/rings-evaluation/):
+
+```bash
+pip install rings-evaluation
+```
+
+Requires Python 3.11+.
+
+### From source
+
+To contribute or run the examples in this repo:
+
 ```bash
 pip install uv
 git clone https://github.com/aidos-lab/rings.git && cd rings

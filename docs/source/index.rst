@@ -17,6 +17,17 @@ Install
 
 .. code-block:: bash
 
+   pip install rings-evaluation
+
+Requires Python 3.11+. Package on `PyPI <https://pypi.org/project/rings-evaluation/>`__.
+
+From source
+~~~~~~~~~~~
+
+To contribute or run the examples in this repo:
+
+.. code-block:: bash
+
    pip install uv
    git clone https://github.com/aidos-lab/rings.git && cd rings
    uv sync && source .venv/bin/activate
