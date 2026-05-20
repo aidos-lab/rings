@@ -6,7 +6,7 @@ with ``SeparabilityStudy`` to iterate perturbation x seed, record one scalar per
 run, then call ``evaluate()`` to get a pairwise separability table.
 
 Usage:
-    uv run python examples/pyg_separability.py
+    uv run -m examples.integrations.pyg
 """
 
 import torch
@@ -42,7 +42,9 @@ def train_and_eval(dataset, seed, epochs=20):
 
     n = len(dataset)
     split = int(0.8 * n)
-    perm = torch.randperm(n, generator=torch.Generator().manual_seed(seed)).tolist()
+    perm = torch.randperm(
+        n, generator=torch.Generator().manual_seed(seed)
+    ).tolist()
     train_ds = dataset[perm[:split]]
     test_ds = dataset[perm[split:]]
 
@@ -100,9 +102,11 @@ def main():
         study.record(name, score)
 
     print("\nSeparability:")
-    print(study.evaluate(n_permutations=1000)[
-        ["mode1", "mode2", "score", "pvalue_adjusted", "significant"]
-    ])
+    print(
+        study.evaluate(n_permutations=1000)[
+            ["mode1", "mode2", "score", "pvalue_adjusted", "significant"]
+        ]
+    )
 
 
 if __name__ == "__main__":

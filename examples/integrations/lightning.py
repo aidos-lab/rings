@@ -13,8 +13,7 @@ This example shows the canonical recipe when you're using Lightning:
 5. Call ``study.evaluate()`` for the pairwise separability table.
 
 Usage:
-    uv pip install -e .[lightning]
-    uv run python -m examples.integrations.lightning
+    uv run --with lightning -m examples.integrations.lightning
 """
 
 import logging
