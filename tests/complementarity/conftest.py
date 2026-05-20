@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
 from unittest.mock import MagicMock
-from rings.complementarity.comparator import L11MatrixNormComparator
 from rings.complementarity.functor import ComplementarityFunctor
 
 
@@ -21,9 +20,7 @@ def ensure_float_weights(weights_dict):
 
 
 # Helper function to check weight values consistently
-def check_weights_approx(
-    weights_dict, expected_value, message=None, tolerance=1e-6
-):
+def check_weights_approx(weights_dict, expected_value, message=None, tolerance=1e-6):
     """Helper function to check weights consistently, handling both float and list weights."""
     weights_dict = ensure_float_weights(weights_dict)
     for weight in weights_dict.values():

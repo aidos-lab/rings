@@ -6,7 +6,9 @@ from rings.perturbations import (
     CompleteFeatures,
     CompleteGraph,
 )
+from rings import integrations
 
+__version__ = "0.1.0"
 
 __all__ = [
     "Original",
@@ -15,4 +17,5 @@ __all__ = [
     "RandomFeatures",
     "CompleteFeatures",
     "CompleteGraph",
+    "integrations",
 ]

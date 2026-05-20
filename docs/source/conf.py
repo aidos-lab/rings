@@ -45,6 +45,16 @@ modindex_common_prefix = ["rings."]
 
 html_static_path = ["_static"]
 
+html_sidebars = {
+    "**": [
+        "sidebar/scroll-start.html",
+        "sidebar/brand.html",
+        "sidebar/search.html",
+        "sidebar/navigation.html",
+        "sidebar/scroll-end.html",
+    ]
+}
+
 
 # Specifies how to actually find the sources of the modules. Ensures
 # that people can jump to files in the repository directly.

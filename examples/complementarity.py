@@ -21,7 +21,14 @@ from torch_geometric.datasets import TUDataset
 from torch_geometric.loader import DataLoader
 
 from rings.complementarity import ComplementarityFunctor, MatrixNormComparator
-from rings.perturbations import *
+from rings.perturbations import (
+    CompleteGraph,
+    EmptyFeatures,
+    EmptyGraph,
+    Original,
+    RandomFeatures,
+    RandomGraph,
+)
 
 
 def get_available_perturbations():
@@ -238,7 +245,7 @@ def main():
 
     # Print results
     print("\n" + "=" * 60)
-    print(f"📊 Results Summary".center(60))
+    print("📊 Results Summary".center(60))
     print("=" * 60)
     print(f"📁 Dataset:         {args.dataset}")
     print(f"🧪 Perturbation:    {args.perturbation}")

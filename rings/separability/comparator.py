@@ -116,7 +116,6 @@ class KSComparator:
         # Prepare for permutation test
         combined = np.concatenate((x, y))
         n1 = len(x)
-        n2 = len(y)
 
         # Run permutation test
         permuted_statistics = np.zeros(n_permutations)

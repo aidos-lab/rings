@@ -172,9 +172,7 @@ class ComplementarityFunctor(torch.nn.Module):
                 for i in range(batch_size)
             )
         else:
-            outputs = [
-                self._process_single(batch[i]) for i in range(batch_size)
-            ]
+            outputs = [self._process_single(batch[i]) for i in range(batch_size)]
 
         # Convert to DataFrame if requested
         if as_dataframe:
@@ -263,9 +261,7 @@ class ComplementarityFunctor(torch.nn.Module):
             nx.set_edge_attributes(G, attributes, "weight")
         else:
             # Always set all edge weights to 1.0 if not using edge information
-            nx.set_edge_attributes(
-                G, {edge: 1.0 for edge in G.edges()}, "weight"
-            )
+            nx.set_edge_attributes(G, {edge: 1.0 for edge in G.edges()}, "weight")
 
         return G
 
@@ -359,9 +355,7 @@ class ComplementarityFunctor(torch.nn.Module):
 
             # Lift graphs for each component
             D_G = [
-                lift_graph(
-                    G.subgraph(C), metric=self.graph_metric, **self.kwargs
-                )
+                lift_graph(G.subgraph(C), metric=self.graph_metric, **self.kwargs)
                 for C in components
             ]
 
@@ -434,9 +428,7 @@ class ComplementarityFunctor(torch.nn.Module):
             List of complementarity scores for each component.
         """
         # Compute complementarity scores for each component
-        return [
-            self.comparator(d_x, d_g)["score"] for d_x, d_g in zip(D_X, D_G)
-        ]
+        return [self.comparator(d_x, d_g)["score"] for d_x, d_g in zip(D_X, D_G)]
 
     def _aggregate(self, scores, sizes):
         """

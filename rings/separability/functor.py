@@ -176,9 +176,7 @@ class SeparabilityFunctor:
                 array_data = np.array(distribution)
                 # Check if data is numeric
                 if not np.issubdtype(array_data.dtype, np.number):
-                    raise Exception(
-                        f"Distribution '{mode}' contains non-numeric data"
-                    )
+                    raise Exception(f"Distribution '{mode}' contains non-numeric data")
             except (ValueError, TypeError) as e:
                 raise Exception(f"Invalid data in distribution '{mode}': {e}")
 

@@ -29,7 +29,7 @@ class Original(BaseTransform):
     >>> assert transformed_data == data
     """
 
-    def __call__(self, data):
+    def forward(self, data):
         """
         Return the original, unmodified data object.
 
@@ -77,7 +77,7 @@ class EmptyFeatures(BaseTransform):
     >>> assert transformed_data.x.size(1) == 1
     """
 
-    def __call__(self, data):
+    def forward(self, data):
         """
         Assign zero vectors as features to each node.
 
@@ -137,7 +137,7 @@ class CompleteFeatures(BaseTransform):
         """
         self.max_nodes = max_nodes
 
-    def __call__(self, data):
+    def forward(self, data):
         """
         Apply the transform to assign one-hot encoded node IDs as features.
 
@@ -230,7 +230,7 @@ class RandomFeatures(BaseTransform):
         current_seed = torch.initial_seed()
         self.generator = torch.Generator().manual_seed(current_seed)
 
-    def __call__(self, data):
+    def forward(self, data):
         """
         Apply the transform to assign or shuffle node features.
 
@@ -324,7 +324,7 @@ class EmptyGraph(BaseTransform):
     >>> assert torch.equal(transformed_data.x, data.x)
     """
 
-    def __call__(self, data):
+    def forward(self, data):
         """
         Remove all edges from the graph.
 
@@ -381,7 +381,7 @@ class CompleteGraph(BaseTransform):
     >>> assert edges == expected_edges
     """
 
-    def __call__(self, data):
+    def forward(self, data):
         """
         Convert the graph into a complete graph.
 
@@ -475,7 +475,7 @@ class RandomGraph(BaseTransform):
         self.shuffle = shuffle
         self.generator = torch.Generator().manual_seed(torch.initial_seed())
 
-    def __call__(self, data):
+    def forward(self, data):
         """
         Replace the graph structure with a random graph.
 
@@ -538,9 +538,7 @@ class RandomGraph(BaseTransform):
         )
 
         # Ensure no self-loops
-        row, col = ensure_no_self_loops(
-            row, col, num_nodes, generator=self.generator
-        )
+        row, col = ensure_no_self_loops(row, col, num_nodes, generator=self.generator)
 
         # Create sparse adjacency matrix
         edge_index = torch.stack([row, col], dim=0).to(data.edge_index.device)
@@ -573,9 +571,7 @@ class RandomGraph(BaseTransform):
         If p is None, the same number of edges as in the original graph is used.
         Otherwise, the number of edges is computed as p * N * (N-1) / 2.
         """
-        num_edges = (
-            data.edge_index.size(1) if p is None else int(p * N * (N - 1) / 2)
-        )
+        num_edges = data.edge_index.size(1) if p is None else int(p * N * (N - 1) / 2)
         return num_edges
 
 
@@ -640,7 +636,7 @@ class RandomConnectedGraph(BaseTransform):
         self.shuffle = shuffle
         self.generator = torch.Generator().manual_seed(torch.initial_seed())
 
-    def __call__(self, data):
+    def forward(self, data):
         """
         Generate a random connected graph structure.
 
@@ -654,9 +650,7 @@ class RandomConnectedGraph(BaseTransform):
         torch_geometric.data.Data
             Transformed graph with connected structure.
         """
-        transform = (
-            self._shuffle if self.shuffle else self._randomize_connected_graph
-        )
+        transform = self._shuffle if self.shuffle else self._randomize_connected_graph
         data = transform(data)
         while not is_connected(data):
             data = transform(data)
@@ -715,14 +709,10 @@ class RandomConnectedGraph(BaseTransform):
 
             # Avoid self-loops and duplicate edges
             if u != v:
-                edge_set.add(
-                    (min(u, v), max(u, v))
-                )  # Use sorted edges for consistency
+                edge_set.add((min(u, v), max(u, v)))  # Use sorted edges for consistency
 
         # Convert edge_set to a PyTorch edge_index on CPU
-        edge_index = torch.tensor(
-            list(edge_set), dtype=torch.long, device="cpu"
-        ).t()
+        edge_index = torch.tensor(list(edge_set), dtype=torch.long, device="cpu").t()
 
         # Transfer the edge_index to the same device as the input data
         data.edge_index = edge_index.to(data.edge_index.device)
@@ -786,8 +776,6 @@ class RandomConnectedGraph(BaseTransform):
         If p is None, it tries to match the original graph's edge count.
         Otherwise, it uses p to determine the total number of edges.
         """
-        num_edges = (
-            data.edge_index.size(1) if p is None else int(p * N * (N - 1) / 2)
-        )
+        num_edges = data.edge_index.size(1) if p is None else int(p * N * (N - 1) / 2)
         num_new_edges = num_edges - l_tree
         return num_new_edges if num_new_edges > 0 else 0

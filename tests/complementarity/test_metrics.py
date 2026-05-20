@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import networkx as nx
 import sklearn.metrics
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from rings.complementarity.metrics import (
     lift_attributes,
@@ -25,9 +25,7 @@ class TestLifts:
         result = lift_attributes(X, metric="euclidean", n_jobs=1)
 
         # Calculate expected result manually
-        expected = sklearn.metrics.pairwise.pairwise_distances(
-            X, metric="euclidean"
-        )
+        expected = sklearn.metrics.pairwise.pairwise_distances(X, metric="euclidean")
 
         np.testing.assert_array_almost_equal(result, expected)
 
@@ -86,9 +84,7 @@ class TestMetrics:
         X = np.array([[1, 2], [3, 4], [5, 6]])
 
         result = standard_feature_metrics(X, metric="euclidean")
-        expected = sklearn.metrics.pairwise.pairwise_distances(
-            X, metric="euclidean"
-        )
+        expected = sklearn.metrics.pairwise.pairwise_distances(X, metric="euclidean")
 
         np.testing.assert_array_almost_equal(result, expected)
 
@@ -155,9 +151,7 @@ class TestMetrics:
         result = shortest_path_distance(G)
 
         # Expected distances for a path graph with 4 nodes (0-1-2-3)
-        expected = np.array(
-            [[0, 1, 2, 3], [1, 0, 1, 2], [2, 1, 0, 1], [3, 2, 1, 0]]
-        )
+        expected = np.array([[0, 1, 2, 3], [1, 0, 1, 2], [2, 1, 0, 1], [3, 2, 1, 0]])
 
         np.testing.assert_array_equal(result, expected)
 
@@ -168,9 +162,7 @@ class TestMetrics:
 
         result = shortest_path_distance(G, weight="weight")
 
-        expected = np.array(
-            [[0, 1, 3, 6], [1, 0, 2, 5], [3, 2, 0, 3], [6, 5, 3, 0]]
-        )
+        expected = np.array([[0, 1, 3, 6], [1, 0, 2, 5], [3, 2, 0, 3], [6, 5, 3, 0]])
 
         np.testing.assert_array_equal(result, expected)
 

@@ -56,9 +56,7 @@ class Shuffle(BaseTransform):
     >>> assert not t2_data.edge_index.equal(data.edge_index)
     """
 
-    def __init__(
-        self, shuffle_edges=False, shuffle_features=False, generator=None
-    ):
+    def __init__(self, shuffle_edges=False, shuffle_features=False, generator=None):
         """
         Initialize the Shuffle transform.
 
@@ -75,7 +73,7 @@ class Shuffle(BaseTransform):
         self.shuffle_features = shuffle_features
         self.generator = generator
 
-    def __call__(self, data):
+    def forward(self, data):
         """
         Apply the shuffle transformation to the graph.
 
@@ -176,9 +174,7 @@ class Shuffle(BaseTransform):
             )
             assert shuffled_target_nodes.size() == target_nodes.size()
             # Update edge_index with the shuffled edges
-            data.edge_index = torch.stack(
-                [source_nodes, shuffled_target_nodes], dim=0
-            )
+            data.edge_index = torch.stack([source_nodes, shuffled_target_nodes], dim=0)
 
         return data
 
@@ -285,9 +281,7 @@ def ensure_no_self_loops(source_nodes, target_nodes, num_nodes, generator):
                 device=target_nodes.device,
                 generator=generator,
             )
-            valid_targets_mask = (
-                random_target_nodes != source_nodes[self_loop_mask]
-            )
+            valid_targets_mask = random_target_nodes != source_nodes[self_loop_mask]
 
         # Replace only target nodes to keep the source nodes intact
         target_nodes[self_loop_mask] = random_target_nodes

@@ -92,14 +92,14 @@ def basic_comparator_example(seed=42):
     s2 = np.random.normal(0.5, 1, 100)  # From distribution 2
 
     print("📈 Comparing two normal distributions:")
-    print(f"   - Distribution 1: μ = 0, σ = 1, n = 100")
-    print(f"   - Distribution 2: μ = 0.5, σ = 1, n = 100")
+    print("   - Distribution 1: μ = 0, σ = 1, n = 100")
+    print("   - Distribution 2: μ = 0.5, σ = 1, n = 100")
     print("-" * 60)
 
     # Using KS Comparator
     ks = KSComparator()
     ks_result = ks(s1, s2, n_hypotheses=5)
-    print(f"🧪 KS Test Results:")
+    print("🧪 KS Test Results:")
     print(f"   - Statistic: {ks_result['score']:.4f}")
     print(f"   - P-value:   {ks_result['pvalue']:.4f}")
     print(f"   - Adjusted:  {ks_result['pvalue_adjusted']:.4f}")
@@ -108,7 +108,7 @@ def basic_comparator_example(seed=42):
     # Using Wilcoxon Comparator
     wc = WilcoxonComparator()
     wc_result = wc(s1, s2, n_hypotheses=5)
-    print(f"\n🧮 Wilcoxon Test Results:")
+    print("\n🧮 Wilcoxon Test Results:")
     print(f"   - Statistic: {wc_result['score']:.4f}")
     print(f"   - P-value:   {wc_result['pvalue']:.4f}")
     print(f"   - Adjusted:  {wc_result['pvalue_adjusted']:.4f}")
@@ -195,12 +195,12 @@ def print_results_summary(results_df, results_list, comparator_name):
     total_comparisons = len(results_list)
 
     print("\n" + "=" * 60)
-    print(f"📊 Results Summary".center(60))
+    print("📊 Results Summary".center(60))
     print("=" * 60)
     print(f"🧪 Comparator:        {comparator_name.upper()}")
     print(f"📈 Total Comparisons: {total_comparisons}")
     print(
-        f"⚠️  Significant Diffs: {significant_count} ({significant_count/total_comparisons*100:.1f}%)"
+        f"⚠️  Significant Diffs: {significant_count} ({significant_count / total_comparisons * 100:.1f}%)"
     )
     print("-" * 60)
 

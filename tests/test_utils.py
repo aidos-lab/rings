@@ -1,16 +1,13 @@
-import pytest
 import torch
 from torch_geometric.data import Data
 
-from rings.utils import Shuffle, is_connected
+from rings.utils import Shuffle
 
 
 class TestShuffleTransform:
     def setup_method(self):
         # Create a simple graph for testing
-        self.edge_index = torch.tensor(
-            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
-        )
+        self.edge_index = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
         self.x = torch.tensor([[1, 2], [3, 4], [5, 6]], dtype=torch.float)
         self.data = Data(x=self.x, edge_index=self.edge_index, num_nodes=3)
 
@@ -58,14 +55,10 @@ class TestShuffleTransform:
         assert transformed_data.edge_index.shape == self.data.edge_index.shape
 
         # Verify that edges were actually shuffled
-        assert not torch.equal(
-            transformed_data.edge_index[1], self.data.edge_index[1]
-        )
+        assert not torch.equal(transformed_data.edge_index[1], self.data.edge_index[1])
 
         # Source nodes should remain the same
-        assert torch.equal(
-            transformed_data.edge_index[0], self.data.edge_index[0]
-        )
+        assert torch.equal(transformed_data.edge_index[0], self.data.edge_index[0])
 
     def test_no_self_loops(self):
         # Test that no self-loops are created during edge shuffling
@@ -89,9 +82,7 @@ class TestShuffleTransform:
         transformed_data = transform(self.data.clone())
 
         # Verify both edges and features were modified
-        assert not torch.equal(
-            transformed_data.edge_index, self.data.edge_index
-        )
+        assert not torch.equal(transformed_data.edge_index, self.data.edge_index)
         assert not torch.equal(transformed_data.x, self.data.x)
 
     def test_no_transformation(self):
@@ -105,15 +96,11 @@ class TestShuffleTransform:
 
     def test_with_no_features(self):
         # Test behavior when data has no features
-        edge_index = torch.tensor(
-            [[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long
-        )
+        edge_index = torch.tensor([[0, 1, 1, 2], [1, 0, 2, 1]], dtype=torch.long)
         data_no_features = Data(edge_index=edge_index, num_nodes=3)
 
         transform = Shuffle(shuffle_edges=True, shuffle_features=True)
         transformed_data = transform(data_no_features.clone())
 
         # Only edges should be shuffled, no error should be raised
-        assert not torch.equal(
-            transformed_data.edge_index, data_no_features.edge_index
-        )
+        assert not torch.equal(transformed_data.edge_index, data_no_features.edge_index)
