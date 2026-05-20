@@ -65,3 +65,8 @@ include = [
 [build-system]
 requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "lightning>=2.6.1",
+]
