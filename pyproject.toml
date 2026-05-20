@@ -42,16 +42,6 @@ Repository = "https://github.com/aidos-lab/rings"
 Issues = "https://github.com/aidos-lab/rings/issues"
 Paper = "https://proceedings.mlr.press/v267/coupette25a.html"
 
-[project.optional-dependencies]
-dev = [
-    "furo>=2024.8.6",
-    "ipykernel>=6.29.5",
-    "pytest>=8.4.1",
-    "pytest-cov>=6.2.1",
-    "ruff>=0.15.13",
-    "sphinx>=8.2.3",
-]
-
 [tool.hatch.build.targets.wheel]
 packages = ["rings-evaluation"]
 
@@ -68,5 +58,13 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "ipykernel>=6.29.5",
     "lightning>=2.6.1",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "ruff>=0.15.13",
+]
+docs = [
+    "furo>=2024.8.6",
+    "sphinx>=8.2.3",
 ]
