@@ -21,6 +21,22 @@ Install
 
 Requires Python 3.11+. Package on `PyPI <https://pypi.org/project/rings-evaluation/>`__.
 
+Optional integrations
+~~~~~~~~~~~~~~~~~~~~~
+
+Install only what you need:
+
+.. code-block:: bash
+
+   # PyTorch Lightning integration
+   pip install "rings-evaluation[lightning]"
+
+   # DGL integration (available for Python < 3.13)
+   pip install "rings-evaluation[dgl]"
+
+   # Both integrations
+   pip install "rings-evaluation[integrations]"
+
 From source
 ~~~~~~~~~~~
 
@@ -31,6 +47,14 @@ To contribute or run the examples in this repo:
    pip install uv
    git clone https://github.com/aidos-lab/rings.git && cd rings
    uv sync && source .venv/bin/activate
+
+Enable optional integration groups as needed:
+
+.. code-block:: bash
+
+   uv sync --group lightning
+   uv sync --group dgl
+   uv sync --group integrations
 
 Quickstart
 ----------------------------------------------
