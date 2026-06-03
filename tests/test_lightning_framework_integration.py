@@ -59,7 +59,9 @@ def _run_study_with_lightning(base_graph, perturbations, num_seeds=2):
     for name, transform, seed in study.runs():
         torch.manual_seed(seed)
         graph = study.apply(base_graph, transform)
-        callback = SeparabilityCallback(study, perturbation_name=name, metric_key="test_acc")
+        callback = SeparabilityCallback(
+            study, perturbation_name=name, metric_key="test_acc"
+        )
         trainer = pl.Trainer(
             accelerator="cpu",
             devices=1,

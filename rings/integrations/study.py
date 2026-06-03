@@ -100,6 +100,7 @@ class SeparabilityStudy:
         # Try PyG
         try:
             from torch_geometric.data import Data, Dataset
+
             if isinstance(data, Dataset):
                 data.transform = transform
                 return data
@@ -111,6 +112,7 @@ class SeparabilityStudy:
         # Try DGL
         try:
             import dgl
+
             if isinstance(data, dgl.DGLGraph):
                 return transform(data)
         except ImportError:

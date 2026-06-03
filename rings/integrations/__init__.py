@@ -17,7 +17,7 @@ def __getattr__(name):
         from rings.integrations.lightning import SeparabilityCallback
 
         return SeparabilityCallback
-    
+
     if name in [
         "DGLOriginal",
         "DGLEmptyFeatures",
