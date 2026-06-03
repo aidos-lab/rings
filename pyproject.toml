@@ -1,6 +1,6 @@
 [project]
 name = "rings-evaluation"
-version = "0.1.0"
+version = "0.1.1"
 description = "RINGS: Relevant Information in Node Features and Graph Structure. An evaluation framework for graph-learning based on first principles."
 readme = "README.md"
 license = "BSD-3-Clause"
