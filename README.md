@@ -16,6 +16,21 @@ pip install rings-evaluation
 
 Requires Python 3.11+.
 
+### Optional integrations
+
+Install only what you need:
+
+```bash
+# PyTorch Lightning integration
+pip install "rings-evaluation[lightning]"
+
+# DGL integration (available for Python < 3.13)
+pip install "rings-evaluation[dgl]"
+
+# Both integrations
+pip install "rings-evaluation[integrations]"
+```
+
 ### From source
 
 To contribute or run the examples in this repo:
@@ -24,6 +39,14 @@ To contribute or run the examples in this repo:
 pip install uv
 git clone https://github.com/aidos-lab/rings.git && cd rings
 uv sync && source .venv/bin/activate
+```
+
+Enable optional integration groups as needed:
+
+```bash
+uv sync --group lightning
+uv sync --group dgl
+uv sync --group integrations
 ```
 
 ---
@@ -74,6 +97,27 @@ for name, transform, seed in study.runs():
     )
     trainer.fit(model, datamodule=dm)
     trainer.test(model, datamodule=dm)
+
+results = study.evaluate()
+```
+
+**DGL** — use the DGL wrappers from `rings.integrations` (backed by the same core perturbation logic):
+
+```python
+from rings.integrations import DGLOriginal, DGLEmptyGraph, SeparabilityStudy
+
+study = SeparabilityStudy(
+    perturbations={
+        "Original": DGLOriginal(),
+        "EmptyGraph": DGLEmptyGraph(),
+    },
+    num_seeds=5,
+)
+
+for name, transform, seed in study.runs():
+    perturbed = study.apply(base_dgl_graph, transform)
+    score = train_and_eval_dgl(perturbed, seed=seed)  # your code
+    study.record(name, score)
 
 results = study.evaluate()
 ```
