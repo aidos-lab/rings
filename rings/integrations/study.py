@@ -92,21 +92,31 @@ class SeparabilityStudy:
 
     @staticmethod
     def apply(data: Any, transform: Callable) -> Any:
-        """Apply ``transform`` to a single ``Data`` object or to a PyG ``Dataset``.
+        """Apply ``transform`` to a PyG ``Data``/``Dataset`` or a DGL ``DGLGraph``.
 
-        For a ``Dataset``, this sets ``dataset.transform`` so that the transform is
-        applied lazily on each ``__getitem__`` call — the PyG-idiomatic pattern. For
-        a single ``Data`` object, the transform is called directly and the result
-        is returned. Other inputs are passed straight through ``transform(data)``
-        as a fallback.
+        For a PyG ``Dataset``, this sets ``dataset.transform`` for lazy application.
+        For PyG ``Data`` or DGL ``DGLGraph``, the transform is called directly.
         """
-        from torch_geometric.data import Data, Dataset
+        # Try PyG
+        try:
+            from torch_geometric.data import Data, Dataset
+            if isinstance(data, Dataset):
+                data.transform = transform
+                return data
+            if isinstance(data, Data):
+                return transform(data)
+        except ImportError:
+            pass
 
-        if isinstance(data, Dataset):
-            data.transform = transform
-            return data
-        if isinstance(data, Data):
-            return transform(data)
+        # Try DGL
+        try:
+            import dgl
+            if isinstance(data, dgl.DGLGraph):
+                return transform(data)
+        except ImportError:
+            pass
+
+        # Fallback for generic objects
         return transform(data)
 
     def record(self, name: str, score: float) -> None:
