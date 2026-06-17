@@ -57,6 +57,57 @@ Lightning
 
 Your ``LightningModule.test_step`` must call ``self.log("test_acc", acc)`` (or whatever ``metric_key`` you pass to ``SeparabilityCallback``).
 
+DGL
+---
+
+Install the optional integration dependencies:
+
+.. code-block:: bash
+
+   pip install "rings-evaluation[dgl]"
+   # or with uv:
+   uv sync --group dgl
+
+RINGS keeps PyG perturbations as the source of truth and exposes DGL-compatible wrappers
+through ``rings.integrations``:
+
+- ``DGLOriginal``
+- ``DGLEmptyFeatures``
+- ``DGLRandomFeatures``
+- ``DGLEmptyGraph``
+- ``DGLCompleteGraph``
+- ``DGLRandomGraph``
+
+These wrappers convert a ``dgl.DGLGraph`` to a temporary PyG ``Data`` object, apply the
+underlying RINGS perturbation, and convert the result back to DGL.
+
+.. code-block:: python
+
+   from rings.integrations import (
+       DGLOriginal,
+       DGLEmptyGraph,
+       DGLRandomFeatures,
+       SeparabilityStudy,
+   )
+
+   study = SeparabilityStudy(
+       perturbations={
+           "Original": DGLOriginal(),
+           "EmptyGraph": DGLEmptyGraph(),
+           "RandomFeatures": DGLRandomFeatures(shuffle=True),
+       },
+       num_seeds=5,
+       comparator="ks",
+       alpha=0.05,
+   )
+
+   for name, transform, seed in study.runs():
+       perturbed = study.apply(base_dgl_graph, transform)
+       score = train_and_eval_dgl(perturbed, seed=seed)  # your code
+       study.record(name, score)
+
+   results = study.evaluate()
+
 Custom evaluators
 -----------------
 
@@ -86,6 +137,14 @@ SeparabilityCallback
 ^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: rings.integrations.lightning
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+DGL perturbation wrappers
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: rings.integrations.dgl
    :members:
    :undoc-members:
    :show-inheritance:
